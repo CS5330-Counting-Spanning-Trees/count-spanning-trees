@@ -12,4 +12,5 @@ def make_random_graph(n, density):
                 continue
             if random.random() < density:
                 g[i].append(j)
+                g[j].append(i)
     return g
