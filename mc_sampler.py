@@ -45,14 +45,10 @@ class MCSampler():
         ra.parents[ra.root] = neighbor
         ra.root = neighbor
 
-    def sample(self):
+    def sample(self, rounds):
         ra = RootedArborescence.random_ra_from_graph(self.g)
-        visited = set()
-        #  TODO: should we just do n^6 / e steps as per the slides?
-        # but that is in Big O, so what is the constant factor?
-        while (len(visited) < len(self.g.keys())):
+        for _ in range(rounds):
             self.markov_step(ra)
-            visited.add(ra.root)
         st = defaultdict(list)
         for v, p in ra.parents.items():
             st[v].append(p)
