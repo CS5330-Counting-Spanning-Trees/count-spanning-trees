@@ -1,4 +1,3 @@
-# class to sample spanning trees
 import random
 
 # given a walk as a list of vertices
@@ -31,10 +30,10 @@ def eraseLoops(walk):
         
     return res
 
-            
+# class to sample random spanning trees
 class STSampler:
     def __init__(self, g):  
-        self.graph = g # graph as adjList
+        self.graph = g # graph is adjList stored in a dict
 
     # choose a neighbor of x in self.graph
     def chooseNeighbor(self, x):
@@ -64,16 +63,17 @@ class STSampler:
             tree[u].append(v) # can be improved to check for duplicates
             tree[v].append(u)
 
-    # removes B from A
+    # removes a list of elements B from the set A
     # modifies A
     def remove(self, A, B):
         for x in B:
             A.discard(x)
             
-    # returns ST uniformly distributed
+    # returns a ST uniformly distributed
+    # implements Wilson's algorithm
     def sample(self):
         unused = set(g.keys())
-        root = unused.pop() # choose last elem to be the root
+        root = unused.pop() # choose last elem to be the root, choice of root does not matter
         tree = {} # we will construct this tree. It is in adjList form
         tree[root] = [] # tree is initially just the root
 
@@ -127,9 +127,8 @@ def countEdges(g):
     else:
         return total // 2
             
-
-# g is a adjList in dict form
 # checks that g is a spanning tree
+# g is a adjList, stored as a dict
 def isST(g):
     # connected
     if isConnected(g) and countEdges(g) == len(g.keys()) - 1:
@@ -137,30 +136,22 @@ def isST(g):
     else:
         return False
         
-    
-g = {}
-g[1] = [2, 4]
-g[2] = [1, 3, 4]
-g[3] = [2, 4, 6]
-g[4] = [1, 2, 3, 5]
-g[5] = [4, 6]
-g[6] = [3, 5]
+def tests():
+    g = {}
+    g[1] = [2, 4]
+    g[2] = [1, 3, 4]
+    g[3] = [2, 4, 6]
+    g[4] = [1, 2, 3, 5]
+    g[5] = [4, 6]
+    g[6] = [3, 5]
 
-d = {}
-a = 'aaa'
-b = 'bbb'
-c= 'ccc'
-d[a] = 1
-d[b] = 2
-d[c] = 3
+    checkGraph(g)
 
-checkGraph(g)
-
-print('sample test')
-sp = STSampler(g)
-for i in range(10):
-    t = sp.sample()
-    print(isST(t))
+    print('sample test')
+    sp = STSampler(g)
+    for i in range(10):
+        t = sp.sample()
+        print(isST(t))
 
         
         
