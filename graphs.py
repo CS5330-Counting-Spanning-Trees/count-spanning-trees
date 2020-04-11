@@ -29,6 +29,7 @@ def is_connected(g):
 
 # given a graph g, counts the number of edges in the graph
 # assumes g is undirected, so each edge appears twice
+# useful for sanity checks
 def num_edges(g):
     total = 0
     for k, v in g.items():
@@ -138,3 +139,4 @@ def get_random_distribution(a, b, n):
     for i in range(n):
         d[random.randint(a, b)] += 1
     return d
+    
