@@ -21,12 +21,14 @@ def get_adj_matrix(graph):
     for i in range(len(vertices)):
         labels[vertices[i]] = i
 
+    #print(labels)
     matrix = []
     for r in range(n):
         u = vertices[r]
         row = [0] * n # create this row
         nbrs = graph[u]
         for v in nbrs:
+            #print(r, v)
             row[labels[v]] = 1
         matrix.append(row)
     return matrix

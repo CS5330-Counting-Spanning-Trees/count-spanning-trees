@@ -199,5 +199,3 @@ def test_st_count():
     print('The counts are:')
     print(stc.counts)
         
-
-test_st_count()
