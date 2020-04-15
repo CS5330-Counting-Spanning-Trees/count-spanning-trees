@@ -8,6 +8,7 @@ import numpy as np
 # each dataset is a bunch of points (x_i, y_i), which will appear 1 line
 # so each dataset gives one line, all plotted on the same axes
 # WARNING: will overwrite files!!!
+
 # currently I don't know how to plot data and return some object, which can be viewed or saved later.
 # i only know how to immediately save LOL
 def plot_data_and_save(data, path):
