@@ -37,6 +37,9 @@ class STSampler:
     def __init__(self, g):  
         self.graph = g # graph is adjList stored in a dict
 
+    def set_graph(self, g):
+        self.graph = g
+
     # choose a neighbor of x in self.graph
     def chooseNeighbor(self, x):
         if x in self.graph:

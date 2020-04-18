@@ -35,6 +35,9 @@ class MCSampler():
     def __init__(self, g):
         self.g = g
 
+    def set_graph(self, g):
+        self.g = g
+
     def markov_step(self, ra):
         r = random.random()
         if r < 0.5:
