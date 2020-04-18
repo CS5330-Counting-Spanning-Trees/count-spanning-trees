@@ -1,5 +1,7 @@
+#!/usr/bin/env python3
+
 # contains functions to run tests 
-import math
+import math, sys
 import graphs, mtt, approx_count_st, st_sampler, mc_sampler
 
 
@@ -7,13 +9,13 @@ import graphs, mtt, approx_count_st, st_sampler, mc_sampler
 # use the sampler and num_samples params to approximate the number of spanning tress
 # use mtt to compute the correct answer
 # return the error (approx - actual) / actual
-def get_error(num_vertices, density, seed, num_samples, sampler_name, use_log = False):
+def get_error(num_vertices, density, seed, num_samples, sampler_type, use_log = False):
     g = graphs.get_random_connected_graph(num_vertices, density) # todo: add seed here
     actual = mtt.MTT(g)  # todo: add use_log
     sampler = None
-    if (sampler_name == "st"):
+    if (sampler_type == "st"):
         sampler = st_sampler.STSampler(g)
-    elif (sampler_name == "mc"):
+    elif (sampler_type == "mc"):
         sampler = mc_sampler.MCSampler(g)
     else:
         print("invalid sampler")
@@ -40,3 +42,15 @@ def unit_test():
 
 # unit_test()
 
+# usage:
+# python3 tester.py n density seed num_samples sampler_type use_log
+# e.g.
+# python3 tester.py 30 0.5 123 100 st False
+if __name__ == "__main__":
+    _, n, density, seed, num_samples, sampler_type, use_log = sys.argv
+    n = int(n)
+    density = float(density)
+    seed = int(seed)
+    num_samples = int(num_samples)
+    error = get_error(n, density, seed, num_samples, sampler_type, use_log == "True")
+    print(f"error = {error}")
