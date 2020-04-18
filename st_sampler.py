@@ -1,4 +1,6 @@
 import random
+from graphs import ST_counter
+from mtt import MTT
 
 # given a walk as a list of vertices
 # returns a newwalk which has no loops
@@ -72,7 +74,7 @@ class STSampler:
     # returns a ST uniformly distributed
     # implements Wilson's algorithm
     def sample(self):
-        unused = set(g.keys())
+        unused = set(self.graph.keys())
         root = unused.pop() # choose last elem to be the root, choice of root does not matter
         tree = {} # we will construct this tree. It is in adjList form
         tree[root] = [] # tree is initially just the root
@@ -153,16 +155,47 @@ def tests():
         t = sp.sample()
         print(isST(t))
 
-        
-        
-        
 
+# tests the distribution of ST_sampler 
+def test_st_count():
+    g1 = {}
+    g1[1] = [2, 6]
+    g1[2] = [1, 3, 6]
+    g1[3] = [2, 4, 5]
+    g1[4] = [3, 5]
+    g1[5] = [3, 4, 6]
+    g1[6] = [1, 2, 5]
 
+    stc = ST_counter()
+    sampler = STSampler(g1)
+    N = 1000
+    for i in range(N):
+        t = sampler.sample()
+        stc.add_tree(t)
+    print('Correct number of st = {}'.format(MTT(g1)))
+    print('number of st seen = {}'.format(len(stc.counts)))
+    print('The counts are:')
+    print(stc.counts)
 
+    g2 = {}
+    g2[1] = [2, 6]
+    g2[2] = [1, 3, 6]
+    g2[3] = [2, 4, 5]
+    g2[4] = [3, 5]
+    g2[5] = [3, 4, 6]
+    g2[6] = [1, 2, 5, 7]
+    g2[7] = [6, 8, 9]
+    g2[8] = [7, 9]
+    g2[9] = [7, 8]
 
-
-
-
-
-
+    stc = ST_counter()
+    sampler = STSampler(g2)
+    N = 10000
+    for i in range(N):
+        t = sampler.sample()
+        stc.add_tree(t)
+    print('Correct number of st = {}'.format(MTT(g2)))
+    print('number of st seen = {}'.format(len(stc.counts)))
+    print('The counts are:')
+    print(stc.counts)
         

@@ -21,12 +21,14 @@ def get_adj_matrix(graph):
     for i in range(len(vertices)):
         labels[vertices[i]] = i
 
+    #print(labels)
     matrix = []
     for r in range(n):
         u = vertices[r]
         row = [0] * n # create this row
         nbrs = graph[u]
         for v in nbrs:
+            #print(r, v)
             row[labels[v]] = 1
         matrix.append(row)
     return matrix
@@ -60,15 +62,13 @@ def MTT(graph):
     return int(round(det))
 
 def test():
-    g = {}
-    g[1] = [2, 4]
-    g[2] = [1, 3, 4]
-    g[3] = [2, 4, 6]
-    g[4] = [1, 2, 3, 5]
-    g[5] = [4, 6]
-    g[6] = [3, 5]
-
-    print(MTT(g))
+    # cycle graph
+    g1 = {}
+    g1[1] = [2, 4]
+    g1[2] = [1, 3]
+    g1[3] = [2, 4]
+    g1[4] = [3, 1]
+    print(MTT(g1) == 4)
 
     # complete graph with 4 vertices
     g2 = {}
@@ -76,8 +76,7 @@ def test():
     g2[2] = [1, 3, 4]
     g2[3] = [1, 2, 4]
     g2[4] = [1, 2, 3]
-
-    print(MTT(g2)) # shud be 4**2 =16
+    print(MTT(g2) == 16) 
 
     # two copies of K_4, joined together by vertex 9
     g3 = {}
@@ -85,19 +84,35 @@ def test():
     g3[2] = [1, 3, 4]
     g3[3] = [1, 2, 4]
     g3[4] = [1, 2, 3, 9]
-
     g3[5] = [6, 7, 8, 9]
     g3[6] = [5, 7, 8]
     g3[7] = [5, 6, 8]
     g3[8] = [5, 6, 7]
-
     g3[9] = [4, 5]
-    
-    m = get_adj_matrix(g3)
-    print2d(m)
-    L = get_laplacian(m)
-    print2d(L)
-    
-    print(MTT(g3)) # shud be 16 ** 2 = 256
-        
-test()
+    print(MTT(g3) == 256)
+
+    # hexagon with 2 lines
+    g4 = {}
+    g4[1] = [2, 6]
+    g4[2] = [1, 3, 6]
+    g4[3] = [2, 4, 5]
+    g4[4] = [3, 5]
+    g4[5] = [3, 4, 6]
+    g4[6] = [1, 2, 5]
+    print(MTT(g4) == 30) # hand-calculate there are 30 ways
+
+    # 2 copies of hexagon with 2 lines
+    g5 = {}
+    g5[1] = [2, 6]
+    g5[2] = [1, 3, 6]
+    g5[3] = [2, 4, 5]
+    g5[4] = [3, 5]
+    g5[5] = [3, 4, 6]
+    g5[6] = [1, 2, 3, 7]
+    g5[7] = [8, 11, 12, 6]
+    g5[8] = [7, 9, 10]
+    g5[9] = [8, 10]
+    g5[10] = [9, 8, 11]
+    g5[11] = [7, 10, 12]
+    g5[12] = [7, 11]
+    print(MTT(g5) == 900)
