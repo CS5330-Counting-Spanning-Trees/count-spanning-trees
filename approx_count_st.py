@@ -36,7 +36,7 @@ def get_remaining_edges(g, st):
     random.shuffle(edges)
     return edges
 
-def approx_count_st(g, rounds, samples):
+def approx_count_st(g, samples):
     g_i = get_initial_st(g)
     remaining_edges = get_remaining_edges(g, g_i)
     # the initial graph has only 1 st
@@ -48,10 +48,11 @@ def approx_count_st(g, rounds, samples):
         g_i[v].append(u)
         # denominator is the number of samples that are also st for g without the new edge
         denominator = 0
+        # TODO(marvin): let's see how the performance varies with mixing time
+        sampler = MCSampler(g_i, len(g_i) ** 2)
         for _ in range(samples):
-            sampler = MCSampler(g_i)
-            sample = sampler.sample(rounds)
+            sample = sampler.sample()
             if u not in sample[v]:
                 denominator += 1
         result *= Fraction(samples, denominator)
-    return float(result)
+    return int(result)

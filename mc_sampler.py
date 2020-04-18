@@ -32,25 +32,32 @@ class RootedArborescence():
 
 
 class MCSampler():
-    def __init__(self, g):
+    def __init__(self, g, mix_time):
         self.g = g
+        self.ra = RootedArborescence.random_ra_from_graph(self.g)
+        self.mix(mix_time)
 
-    def markov_step(self, ra):
+    def markov_step(self):
         r = random.random()
         if r < 0.5:
-            return self
-        neighbors = self.g[ra.root][:]
+            return
+        neighbors = self.g[self.ra.root][:]
         neighbor = random.sample(neighbors, 1)[0]
-        del ra.parents[neighbor]
-        ra.parents[ra.root] = neighbor
-        ra.root = neighbor
+        del self.ra.parents[neighbor]
+        self.ra.parents[self.ra.root] = neighbor
+        self.ra.root = neighbor
 
-    def sample(self, rounds):
-        ra = RootedArborescence.random_ra_from_graph(self.g)
-        for _ in range(rounds):
-            self.markov_step(ra)
+    def mix(self, mix_time):
+        for _ in range(mix_time):
+            self.markov_step()
+
+    def ra_to_st(self):
         st = defaultdict(list)
-        for v, p in ra.parents.items():
+        for v, p in self.ra.parents.items():
             st[v].append(p)
             st[p].append(v)
         return st
+
+    def sample(self):
+        self.markov_step()
+        return self.ra_to_st()
