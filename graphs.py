@@ -1,6 +1,11 @@
+#!/usr/bin/env python3
+
 import random
 import pprint
 from collections import defaultdict
+
+import numpy as np
+from mtt import *
 
 # print graph with nice formatting
 def printGraph(g):
@@ -46,16 +51,22 @@ def make_complete_graph(n):
             g[j].append(i)
     return g
 
-def make_random_graph(n, density):
+def make_random_graph(n, density, seed = None, max_degree = np.inf, min_degree = 0):
+
+    # set a fixed seed
+    if seed:
+        random.seed(seed)
+
     # we want the graph to be connected, so we start with a spanning tree
     g = make_random_st(n)
     for i in range(n):
-        for j in range(n):
-            if i == j:
-                continue
+        for j in range(i+1, n):
             if j in g[i]:
                 continue
-            if random.random() < density:
+            # check existing degree
+            if len(g[i]) >= max_degree:
+                break
+            if len(g[i]) < min_degree or random.random() < density:
                 g[i].append(j)
                 g[j].append(i)
     return g
@@ -79,26 +90,31 @@ def make_random_st(n):
     make_random_st_dfs(n, root, visited, st)
     return st
 
-def get_random_graph(n, density):
+def get_random_graph(n, density, max_degree, min_degree):
     g1 = {}
     for i in range(n):
         g1[i] = []
     for i in range(n):
-        for j in range(n):
-            if not (i < j):
-                continue
-            if random.random() < density:
+        for j in range(i+1, n):
+            if len(g1[i]) >= max_degree:
+                break
+            if len(g1[i]) < min_degree or random.random() < density:
                 g1[i].append(j)
                 g1[j].append(i)
     return g1
 
-def get_random_connected_graph(n, density):
+def get_random_connected_graph(n, density, seed = None, max_degree = np.inf, min_degree = 0):
+
+    # set a fixed seed
+    if seed:
+        random.seed(seed)
+
     if (density == 0 and n > 1):
         print("this is impossible.")
         return None
-    g = get_random_graph(n, density)
+    g = get_random_graph(n, density, max_degree, min_degree)
     while not is_connected(g):
-        g = get_random_graph(n, density)
+        g = get_random_graph(n, density, max_degree, min_degree)
     return g
 
  # chooses a random edge from g and returns it
@@ -168,3 +184,42 @@ def get_random_distribution(a, b, n):
     for i in range(n):
         d[random.randint(a, b)] += 1
     return d
+
+def test_complete_graphs():
+    start_time = time.time()
+    print("Generating complete graph...")
+    g = make_complete_graph(4)
+    print("--- %s seconds ---" % (time.time() - start_time))
+    print("Calulating MTT...")
+    start_time = time.time()
+    sign, logdet = MTT(g, use_log=True)
+    assert(sign > 0)
+    if logdet < 10:
+        print("number of spanning trees: %.2f" % (sign * np.exp(logdet)))
+    else:
+        print("number of spanning trees: exp(%.2f)" % logdet)
+    print("--- %s seconds ---" % (time.time() - start_time))
+
+
+def test_random_graphs(seed = None):
+    start_time = time.time()
+    print("Generating random graph...")
+    g = get_random_connected_graph(5000, 0.2, seed=seed, max_degree=10)
+    print("--- %s seconds ---" % (time.time() - start_time))
+    print("Calulating MTT...")
+    sign, logdet = MTT(g, use_log=True)
+    assert(sign > 0)
+    if logdet < 10:
+        print("number of spanning trees: %.2f" % (sign * np.exp(logdet)))
+    else:
+        print("number of spanning trees: exp(%.2f)" % logdet)
+    print("--- %s seconds ---" % (time.time() - start_time))
+
+if __name__ == "__main__":
+    import time
+    print("\n")
+    test_complete_graphs()
+    print("\n")
+    test_random_graphs(seed = 1)
+    print("\n")
+    

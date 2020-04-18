@@ -21,16 +21,12 @@ def get_adj_matrix(graph):
     for i in range(len(vertices)):
         labels[vertices[i]] = i
 
-    #print(labels)
-    matrix = []
+    matrix = np.zeros((n,n),dtype=int)
     for r in range(n):
         u = vertices[r]
-        row = [0] * n # create this row
         nbrs = graph[u]
         for v in nbrs:
-            #print(r, v)
-            row[labels[v]] = 1
-        matrix.append(row)
+            matrix[r][labels[v]] = 1
     return matrix
 
 def get_laplacian(adj_matrix):
@@ -45,23 +41,22 @@ def get_laplacian(adj_matrix):
         row[i] = degree
     return L
 
-                
-def MTT(graph):
+# return in natural log scale by default
+def MTT(graph, use_log = False):
     m = get_adj_matrix(graph)
-    
     L = get_laplacian(m)
-    
-    # delete last row and col of L
-    del L[-1]
-    for row in L:
-        del row[-1]
+
+    L = L[:-1,:-1] # remove the last row and last column
     
     # compute determinant
-    arr = np.array(L)
-    det = np.linalg.det(arr)
-    return int(round(det))
+    if use_log:
+        (sign, logdet) = np.linalg.slogdet(L)
+        return (sign, logdet)
+    else:
+        det = np.linalg.det(L)
+        return int(round(det))
 
-def test():
+def test_mtt():
     # cycle graph
     g1 = {}
     g1[1] = [2, 4]
@@ -116,3 +111,6 @@ def test():
     g5[11] = [7, 10, 12]
     g5[12] = [7, 11]
     print(MTT(g5) == 900)
+
+if __name__ == "__main__": 
+    test_mtt()
