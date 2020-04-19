@@ -24,6 +24,25 @@ def get_error(num_vertices, density, seed, num_samples, sampler_type, use_log = 
     error = abs(actual - estimated) / actual # note that if use_log = True, the error will be log-error also
     return error
 
+# return the error (approx - actual) / actual
+# same as above, but now use functions to vary the number of samples to take, and edges to skip
+def get_error_generic(num_vertices, density, seed, num_samples_fn, num_edges_fn, sampler_type, use_log = False):
+    g = graphs.get_random_connected_graph(num_vertices, density) # todo: add seed here
+    actual = mtt.MTT(g)  # todo: add use_log
+
+    sampler = None
+    if (sampler_type == "st"):
+        sampler = st_sampler.STSampler(g)
+    elif (sampler_type == "mc"):
+        sampler = mc_sampler.MCSampler(g)
+    else:
+        print("invalid sampler")
+        return None
+
+    
+    error = abs(actual - estimated) / actual # note that if use_log = True, the error will be log-error also
+    return error
+
 def unit_test():
     n = 30
     p = 0.3
@@ -40,17 +59,31 @@ def unit_test():
     #     print(error)
     
 
+def unit_test_2():
+    n = 30
+    p = 0.3
+    seed = 1
+    num_samples = 30
+    sampler_type = "st"
+    edge_fn = lambda x: 1 # one edge each time
+    samples_fn = lambda x: 100 # 100 samples each time
+    use_log = False
+    num_vertices, density, seed, num_samples_fn, num_edges_fn, sampler_type, use_log = False):
+    error = get_error_generic(n, density, seed, samples_fn, edge_fn, sampler_type, use_log)
+    print(error)
+
 # unit_test()
+unit_test_2()
 
 # usage:
 # python3 tester.py n density seed num_samples sampler_type use_log
 # e.g.
 # python3 tester.py 30 0.5 123 100 st False
-if __name__ == "__main__":
-    _, n, density, seed, num_samples, sampler_type, use_log = sys.argv
-    n = int(n)
-    density = float(density)
-    seed = int(seed)
-    num_samples = int(num_samples)
-    error = get_error(n, density, seed, num_samples, sampler_type, use_log == "True")
-    print(f"error = {error}")
+# if __name__ == "__main__":
+#     _, n, density, seed, num_samples, sampler_type, use_log = sys.argv
+#     n = int(n)
+#     density = float(density)
+#     seed = int(seed)
+#     num_samples = int(num_samples)
+#     error = get_error(n, density, seed, num_samples, sampler_type, use_log == "True")
+#     print(f"error = {error}")
