@@ -105,15 +105,17 @@ def contains_any_edges(graph, edge_list):
 # more generic vesion of approx_count
 # vary the number of samples and number of edges to add 
 # both functions take in the number of vertices in g, and number of edges in g, and returns a integer
+# warning: depending on the functions you give, can becomes extremely slow, so test first!
 def approx_count_st_generic(g, sampler, num_samples_fn, num_edges_each_time_fn, use_log):
     n = len(g)
     e = n-1 # tracks the number of edges currently in g_i
     g_i = get_initial_st(g)
     # assert(graphs.is_connected(g_i))
     remaining_edges = get_remaining_edges(g, g_i)
-    # the initial graph has only 1 st
-    result = 1
-    iterations = 1
+    
+    result = 1 # the initial graph has only 1 st
+    iterations = 1 # track number of iterations for debug
+    num_samples_record = [] # tracks num_samples at each iteration
     while len(remaining_edges) > 0:
         num_add = min(num_edges_each_time_fn(n, e), len(remaining_edges))
         edges_to_add = remaining_edges[-num_add : ] # get the last few edges
@@ -131,10 +133,22 @@ def approx_count_st_generic(g, sampler, num_samples_fn, num_edges_each_time_fn, 
             sample = sampler.sample()
             if not contains_any_edges(sample, edges_to_add):
                 denominator += 1
+        num_samples_record.append(num_samples)
+
+        if denominator == 0: # we cannot proceed unless we take more samples, so repeat until denom not zero
+            print("entering sampling loop")
+            while(denominator == 0):
+                num_samples_record[-1] += 1
+                sampler.set_graph(g_i)
+                sample = sampler.sample()
+                if not contains_any_edges(sample, edges_to_add):
+                    denominator += 1
+
         result *= Fraction(num_samples, denominator)
         #print(Fraction(num_samples, denominator))
         iterations += 1
 
+    # print(num_samples_record)
     base = math.e # todo: what is the base of the log
     if (use_log):
         return math.log(result, base)
@@ -164,11 +178,11 @@ def unit_test_2():
     sampler = st_sampler.STSampler({}) # empty sampler, it will be initialized within fn later
     num_edges_each_time_fn_1 = lambda x, y: 1 # one edge each time
     num_samples_fn_1 = lambda x, y: 200 # 100 samples each time
-    num_edges_each_time_fn_2 = lambda x, y: 3 # one edge each time
-    num_samples_fn_2 = lambda x, y: 100 + 10*y # for every edge, add 10 samples
+    num_edges_each_time_fn_2 = lambda x, y: 3 # 3 edges each time
+    num_samples_fn_2 = lambda x, y: 100 + 30*y # 100 samples as base, and for every edge, add 10 samples
     use_log = False
     
-    nst = approx_count_st_generic(g, sampler, num_samples_fn_1, num_edges_each_time_fn_1, use_log)
+    nst = approx_count_st_generic(g, sampler, num_samples_fn_2, num_edges_each_time_fn_2, use_log)
     actual = mtt.MTT(g)
     print('error =', abs(nst - actual) / actual)
 
