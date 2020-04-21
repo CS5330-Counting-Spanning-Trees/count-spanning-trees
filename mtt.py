@@ -41,7 +41,7 @@ def get_laplacian(adj_matrix):
         row[i] = degree
     return L
 
-# return in natural log scale by default
+# return in natural log scale, if the use_log flag is set
 def MTT(graph, use_log = False):
     m = get_adj_matrix(graph)
     L = get_laplacian(m)
