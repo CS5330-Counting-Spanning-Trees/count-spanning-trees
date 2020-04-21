@@ -2,6 +2,7 @@ import random
 import time
 from graph import Graph
 from random_graphs import get_random_connected_graph
+from random_cache import get_random
 from collections import defaultdict
 
 
@@ -21,7 +22,8 @@ class STSampler:
 
         while len(tree_vertices) < len(g_vertices):
             edges = self.g.get_edge_indices(v)
-            edge = random.choice(edges)
+            edge_idx = get_random(len(edges))
+            edge = edges[edge_idx]
             neighbor = self.g.neighbor(v, edge)
             if neighbor not in tree_vertices:
                 tree_edges.append(edge)
