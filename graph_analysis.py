@@ -4,8 +4,7 @@ import random
 import mtt
 
 def analyze_graph(n, density, seed):
-    # TODO(marvin): use the seed to generate the graph once that is supported
-    g = graphs.get_random_connected_graph(n, density)
+    g = graphs.get_random_connected_graph(n, density, seed)
     degrees = get_degrees(g)
     min_degree = min(degrees)
     max_degree = max(degrees)
