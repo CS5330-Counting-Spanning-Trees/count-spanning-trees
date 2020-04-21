@@ -1,7 +1,12 @@
-import graphs
-import approx_count_st
+from graph import Graph
+from random_graphs import get_random_connected_graph
+from approx_count_st import approx_count_st
+from mtt import MTT
 
 if __name__ == "__main__":
-    g = graphs.make_complete_graph(10)
-    count = approx_count_st.approx_count_st(g, 1000, 1000)
+    adj_list = get_random_connected_graph(100, 0.1, 0, max_degree=3)
+    g = Graph(adj_list)
+    mtt = MTT(adj_list)
+    print(mtt)
+    count = int(approx_count_st(g))
     print(count)

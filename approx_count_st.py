@@ -1,57 +1,44 @@
 import random
+from graph import Graph
 from fractions import Fraction
 from collections import defaultdict
-from mc_sampler import MCSampler
+from st_sampler import STSampler
 
-def get_initial_st_dfs(g, v, visited, st):
-    visited.add(v)
-    neighbors = g[v][:]
-    random.shuffle(neighbors)
-    for neighbor in neighbors:
-        if neighbor not in visited:
-            st[neighbor].append(v)
-            st[v].append(neighbor)
-            get_initial_st_dfs(g, neighbor, visited, st)
+def approx_count_st(g):
+    num_edges = len(g.get_all_edge_indcies())
+    num_vertices = len(g.get_vertices())
+    # assume g is connected. if |E| = |V| - 1, then there is only 1 st
+    if num_edges == num_vertices - 1:
+        return 1
+    # select any edge in g
+    # we arbitrarily select the first edge in the list
+    e = g.get_all_edge_indcies()[0]
+    # we sample k st from g and see how many has the edge
+    # for now we use k = 100
+    # TODO(marvin): use adaptive sampling
+    k = 1000
+    sampler = STSampler(g)
+    has_e = 0
+    for _ in range(k):
+        st = sampler.sample()
+        if e in st:
+            has_e += 1
+    p = Fraction(has_e, k)
+    # if more than half has e,
+    # then we recurse with e fixed to be in the st
+    if p > 0.5:
+        g.contract(e)
+        approx_count_with_e = approx_count_st(g)
+        return Fraction(approx_count_with_e, p)
+    # otherwise more than half doesn't have e,
+    # then we recurse with e fixed not to be in the st
+    g.remove_edge(e)
+    approx_count_without_e = approx_count_st(g)
+    return Fraction(approx_count_without_e, (1 - p))
 
-def get_initial_st(g):
-    root = random.sample(g.keys(), 1)[0]
-    visited = set()
-    st = defaultdict(list)
-    get_initial_st_dfs(g, root, visited, st)
-    return st
 
-def get_remaining_edges(g, st):
-    edges = []
-    for v, neighbors in g.items():
-        for neighbor in neighbors:
-            if v > neighbor:
-                # every edge is represented twice in g
-                # to avoid double counting, we only consider edges for v < neighbor
-                continue
-            if neighbor in st[v]:
-                # don't include edges in the st
-                continue
-            edge = (v, neighbor)
-            edges.append(edge)
-    random.shuffle(edges)
-    return edges
-
-def approx_count_st(g, rounds, samples):
-    g_i = get_initial_st(g)
-    remaining_edges = get_remaining_edges(g, g_i)
-    # the initial graph has only 1 st
-    result = 1
-    for new_edge in remaining_edges:
-        # add the remaining edges until we get back the original graph
-        u, v = new_edge
-        g_i[u].append(v)
-        g_i[v].append(u)
-        # denominator is the number of samples that are also st for g without the new edge
-        denominator = 0
-        for _ in range(samples):
-            sampler = MCSampler(g_i)
-            sample = sampler.sample(rounds)
-            if u not in sample[v]:
-                denominator += 1
-        result *= Fraction(samples, denominator)
-    return float(result)
+if __name__ == "__main__":
+    adj_matrix = {1: [2, 3], 2: [1, 3], 3: [1, 2, 4], 4: [3]}
+    g = Graph(adj_matrix)
+    count = approx_count_st(g)
+    print(int(count))
