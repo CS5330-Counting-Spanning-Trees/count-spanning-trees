@@ -1,201 +1,120 @@
 import random
-from graphs import ST_counter
-from mtt import MTT
-
-# given a walk as a list of vertices
-# returns a newwalk which has no loops
-# uses -1 as a invalid value
-def eraseLoops(walk):
-    result = [-1] * (len(walk) + 1)
-    ptr = 0
-    seen = {}
-    for v in walk:
-        if v in seen:
-            newptr = seen[v] # erase everything until this point
-            for i in range(newptr+1, ptr): # remove these node from seen
-                del seen[result[i]]
-            ptr = newptr + 1
-
-        else:
-            result[ptr] = v # add to result
-            seen[v] = ptr # record this location
-            ptr += 1
-        result[ptr] = -1 # do this to mark the next location
-
-    # copy the result into an array of correct size
-    res = []
-    for x in result:
-        if x == -1:
-            return res
-        else:
-            res.append(x)
-        
-    return res
+from graph import Graph
+from collections import defaultdict
 
 # class to sample random spanning trees
 class STSampler:
-    def __init__(self, g):  
-        self.graph = g # graph is adjList stored in a dict
+    def __init__(self, g):
+        self.graph = g
 
-    # choose a neighbor of x in self.graph
-    def chooseNeighbor(self, x):
-        if x in self.graph:
-            return random.choice(self.graph[x])
-        else:
-            print('This node is not in the graph!')
-            return -1
-        
+    # erase loops in a walk
+    def erase_loops(self, walk):
+        res = []
+        seen = {}
+        for step in walk:
+            v, _ = step
+            if v not in seen:
+                seen[v] = len(res)
+                res.append(step)
+                continue
+            # we have come across v before, so there is a loop
+            res, to_remove = res[: seen[v] + 1], res[seen[v] + 1:]
+            for u, _ in to_remove:
+                del seen[u]
+        return res
+
     # starting from u, do a random walk until we meet the tree
     # assumes that u is not already part of the tree
-    def findWalk(self, u, tree):
-        walk = [u]
-        while walk[-1] not in tree: # while not yet reached tree
-            cur = walk[-1]
-            nxt = self.chooseNeighbor(cur)
-            walk.append(nxt)
+    def walk_to_tree(self, u, tree_get_vertices):
+        walk = [(u, None)]
+        while True:
+            v, _ = walk[-1]
+            if v in tree_get_vertices:
+                # walk has reached the tree
+                break
+            edge_idx = random.choice(self.graph.get_edge_indices(v))
+            neighbor = self.graph.neighbor(v, edge_idx)
+            # record each step in the path as (vertex, idx of edge taken to reach vertex)
+            step = (neighbor, edge_idx)
+            walk.append(step)
         return walk
-        
-    # adds the found path to the tree
-    def addPath(self, tree, path):
-        for i in range(0, len(path) - 1):
-            tree[path[i]] = [] # add all the vertices
-        for i in range(0, len(path) - 1): # add the edges
-            u = path[i]
-            v = path[i+1]
-            tree[u].append(v) # can be improved to check for duplicates
-            tree[v].append(u)
 
-    # removes a list of elements B from the set A
-    # modifies A
-    def remove(self, A, B):
-        for x in B:
-            A.discard(x)
-            
+    # adds the found path to the tree
+    def add_to_tree(self, tree_get_vertices, tree_edges, path):
+        for step in path:
+            v, edge_idx = step
+            tree_get_vertices.add(v)
+            if edge_idx is not None:
+                # the first step in the path does not have an edge taken
+                tree_edges.append(edge_idx)
+
     # returns a ST uniformly distributed
     # implements Wilson's algorithm
+    # returns the edges used to construct the ST
     def sample(self):
-        unused = set(self.graph.keys())
+        unused = set(self.graph.get_vertices())
         root = unused.pop() # choose last elem to be the root, choice of root does not matter
-        tree = {} # we will construct this tree. It is in adjList form
-        tree[root] = [] # tree is initially just the root
+        tree_get_vertices = set([root]) # initially only the root is in the tree
+        tree_edges = []
 
         while len(unused) > 0:
             u = random.sample(unused, 1)[0]
-            walk = self.findWalk(u, tree)
-            path = eraseLoops(walk)
-            self.addPath(tree, path)
-            self.remove(unused, path[:-1])
+            walk = self.walk_to_tree(u, tree_get_vertices)
+            path = self.erase_loops(walk)
+            self.add_to_tree(tree_get_vertices, tree_edges, path)
+            unused = unused - tree_get_vertices
 
-        return tree
+        return tree_edges
 
-# does basic checks that the graph is valid
-def checkGraph(g):
-    print('checking graph')
-    for k, v in g.items():
-        for nbr in v:
-            assert(k in g[nbr])
-    print('graph ok')
+# Testing functions
 
-def isConnected(g):
-    visited = {}
-    start = 0
-    for v in g.keys():
-        visited[v] = False
-        start = v # grab any vertex
+def to_adj_list(g, edges):
+    adj_list = defaultdict(list)
+    for edge_idx in edges:
+        u, v = g.edges[edge_idx]
+        adj_list[u].append(v)
+        adj_list[v].append(u)
+    return adj_list
+
+def is_st(g, edges):
+    adj_list = to_adj_list(g, edges)
+    g_vertices = g.get_vertices()
+    v = g_vertices[0]
     stack = [v]
-    visited[v] = True
+    visited = set([v])
     while len(stack) > 0:
-        top = stack.pop()
-        for nbr in g[top]:
-            if not visited[nbr]:
-                stack.append(nbr)
-                visited[nbr] = True
-    for k, v in visited.items():
-        if not v:
-            #print('graph not connected')
+        v = stack.pop()
+        for nbr in adj_list[v]:
+            if nbr in visited:
+                continue
+            visited.add(nbr)
+            stack.append(nbr)
+
+    for v in g_vertices:
+        if v not in visited:
+            print("error: st is not connected")
             return False
-    #print('graph is connected')
+
+    if len(edges) != len(g_vertices) - 1:
+        print("error: wrong number of edges")
+
+    # if the graph is connected and it has n - 1 edges,
+    # then it is an st
     return True
-    
-def countEdges(g):
-    total = 0
-    # check that edges are going in both directions
-    for v, nbrs in g.items():
-        for nbr in nbrs:
-            assert(v in g[nbr])
-        total += len(nbrs)
-    if total % 2 != 0:
-        print('error, odd number of edges')
-    else:
-        return total // 2
-            
-# checks that g is a spanning tree
-# g is a adjList, stored as a dict
-def isST(g):
-    # connected
-    if isConnected(g) and countEdges(g) == len(g.keys()) - 1:
-        return True
-    else:
-        return False
-        
-def tests():
-    g = {}
-    g[1] = [2, 4]
-    g[2] = [1, 3, 4]
-    g[3] = [2, 4, 6]
-    g[4] = [1, 2, 3, 5]
-    g[5] = [4, 6]
-    g[6] = [3, 5]
 
-    checkGraph(g)
-
-    print('sample test')
-    sp = STSampler(g)
-    for i in range(10):
-        t = sp.sample()
-        print(isST(t))
+def test_st_sampler():
+    adj_list = {}
+    adj_list[1] = [2, 4]
+    adj_list[2] = [1, 3, 4]
+    adj_list[3] = [2, 4, 6]
+    adj_list[4] = [1, 2, 3, 5]
+    adj_list[5] = [4, 6]
+    adj_list[6] = [3, 5]
+    g = Graph(adj_list)
+    sampler = STSampler(g)
+    st = sampler.sample()
+    assert(is_st(g, st))
 
 
-# tests the distribution of ST_sampler 
-def test_st_count():
-    g1 = {}
-    g1[1] = [2, 6]
-    g1[2] = [1, 3, 6]
-    g1[3] = [2, 4, 5]
-    g1[4] = [3, 5]
-    g1[5] = [3, 4, 6]
-    g1[6] = [1, 2, 5]
-
-    stc = ST_counter()
-    sampler = STSampler(g1)
-    N = 1000
-    for i in range(N):
-        t = sampler.sample()
-        stc.add_tree(t)
-    print('Correct number of st = {}'.format(MTT(g1)))
-    print('number of st seen = {}'.format(len(stc.counts)))
-    print('The counts are:')
-    print(stc.counts)
-
-    g2 = {}
-    g2[1] = [2, 6]
-    g2[2] = [1, 3, 6]
-    g2[3] = [2, 4, 5]
-    g2[4] = [3, 5]
-    g2[5] = [3, 4, 6]
-    g2[6] = [1, 2, 5, 7]
-    g2[7] = [6, 8, 9]
-    g2[8] = [7, 9]
-    g2[9] = [7, 8]
-
-    stc = ST_counter()
-    sampler = STSampler(g2)
-    N = 10000
-    for i in range(N):
-        t = sampler.sample()
-        stc.add_tree(t)
-    print('Correct number of st = {}'.format(MTT(g2)))
-    print('number of st seen = {}'.format(len(stc.counts)))
-    print('The counts are:')
-    print(stc.counts)
-        
+if __name__ == "__main__":
+    test_st_sampler()
