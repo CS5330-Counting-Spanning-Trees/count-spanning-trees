@@ -1,10 +1,10 @@
 import numpy as np
-import graphs
+import random_graphs
 import random
 import mtt
 
 def analyze_graph(n, density, seed):
-    g = graphs.get_random_connected_graph(n, density, seed)
+    g = random_graphs.get_random_connected_graph(n, density, seed)
     degrees = get_degrees(g)
     min_degree = min(degrees)
     max_degree = max(degrees)

@@ -5,7 +5,7 @@ import pprint
 from collections import defaultdict
 
 import numpy as np
-from mtt import *
+from mtt import MTT
 
 # print graph with nice formatting
 def printGraph(g):
@@ -27,7 +27,7 @@ def is_connected(g):
             if not visited[nbr]:
                 stack.append(nbr)
                 visited[nbr] = True
-    for k, v in visited.items():
+    for v in visited.values():
         if not v:
             return False
     return True
@@ -37,7 +37,7 @@ def is_connected(g):
 # useful for sanity checks
 def num_edges(g):
     total = 0
-    for k, v in g.items():
+    for v in g.values():
         total += len(v)
     return total // 2
 
@@ -50,45 +50,6 @@ def make_complete_graph(n):
             g[i].append(j)
             g[j].append(i)
     return g
-
-def make_random_graph(n, density, seed = None, max_degree = np.inf, min_degree = 0):
-
-    # set a fixed seed
-    if seed:
-        random.seed(seed)
-
-    # we want the graph to be connected, so we start with a spanning tree
-    g = make_random_st(n)
-    for i in range(n):
-        for j in range(i+1, n):
-            if j in g[i]:
-                continue
-            # check existing degree
-            if len(g[i]) >= max_degree:
-                break
-            if len(g[i]) < min_degree or random.random() < density:
-                g[i].append(j)
-                g[j].append(i)
-    return g
-
-def make_random_st_dfs(n, v, visited, st):
-    visited.add(v)
-    # consider all other vertices except v as neighbors
-    neighbors = [x if x < v else x + 1 for x in range(n - 1)]
-    random.shuffle(neighbors)
-    for neighbor in neighbors:
-        if neighbor not in visited:
-            st[v].append(neighbor)
-            st[neighbor].append(v)
-            make_random_st_dfs(n, neighbor, visited, st)
-
-
-def make_random_st(n):
-    root = random.randint(0, n - 1)
-    visited = set()
-    st = defaultdict(list)
-    make_random_st_dfs(n, root, visited, st)
-    return st
 
 def get_random_graph(n, density, max_degree, min_degree):
     g1 = {}
@@ -104,9 +65,8 @@ def get_random_graph(n, density, max_degree, min_degree):
     return g1
 
 def get_random_connected_graph(n, density, seed = None, max_degree = np.inf, min_degree = 0):
-
     # set a fixed seed
-    if seed:
+    if seed is not None:
         random.seed(seed)
 
     if (density == 0 and n > 1):
@@ -141,19 +101,19 @@ def get_standard_form(g):
     return [num_vertices, edges]
 
 def test_sf():
-    g = make_random_graph(5, 1)
+    g = get_random_connected_graph(5, 1)
     sf = get_standard_form(g)
     pp = pprint.PrettyPrinter()
     pp.pprint(g)
     pp.pprint(sf)
 
-    g = make_random_graph(10, 0.3)
+    g = get_random_connected_graph(10, 0.3)
     sf = get_standard_form(g)
     pp = pprint.PrettyPrinter()
     pp.pprint(g)
     pp.pprint(sf)
 
-    g = make_random_graph(10, 0.3)
+    g = get_random_connected_graph(10, 0.3)
     del g[0]
     sf = get_standard_form(g)
     pp = pprint.PrettyPrinter()
@@ -181,7 +141,7 @@ class ST_counter:
 # this is the benchmark of what a uniform distribution ought to look like
 def get_random_distribution(a, b, n):
     d = defaultdict(int)
-    for i in range(n):
+    for _ in range(n):
         d[random.randint(a, b)] += 1
     return d
 
@@ -222,4 +182,3 @@ if __name__ == "__main__":
     print("\n")
     test_random_graphs(seed = 1)
     print("\n")
-    
