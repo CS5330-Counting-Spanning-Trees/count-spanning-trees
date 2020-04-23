@@ -1,5 +1,5 @@
 import random
-from graphs import ST_counter
+from graphs import ST_counter, is_st
 from mtt import MTT
 
 # given a walk as a list of vertices
@@ -90,58 +90,8 @@ class STSampler:
             self.remove(unused, path[:-1])
 
         return tree
-
-# does basic checks that the graph is valid
-def checkGraph(g):
-    print('checking graph')
-    for k, v in g.items():
-        for nbr in v:
-            assert(k in g[nbr])
-    print('graph ok')
-
-def isConnected(g):
-    visited = {}
-    start = 0
-    for v in g.keys():
-        visited[v] = False
-        start = v # grab any vertex
-    stack = [v]
-    visited[v] = True
-    while len(stack) > 0:
-        top = stack.pop()
-        for nbr in g[top]:
-            if not visited[nbr]:
-                stack.append(nbr)
-                visited[nbr] = True
-    for k, v in visited.items():
-        if not v:
-            #print('graph not connected')
-            return False
-    #print('graph is connected')
-    return True
-    
-def countEdges(g):
-    total = 0
-    # check that edges are going in both directions
-    for v, nbrs in g.items():
-        for nbr in nbrs:
-            assert(v in g[nbr])
-        total += len(nbrs)
-    if total % 2 != 0:
-        print('error, odd number of edges')
-    else:
-        return total // 2
-            
-# checks that g is a spanning tree
-# g is a adjList, stored as a dict
-def isST(g):
-    # connected
-    if isConnected(g) and countEdges(g) == len(g.keys()) - 1:
-        return True
-    else:
-        return False
         
-def tests():
+def test_sampler():
     g = {}
     g[1] = [2, 4]
     g[2] = [1, 3, 4]
@@ -150,13 +100,11 @@ def tests():
     g[5] = [4, 6]
     g[6] = [3, 5]
 
-    checkGraph(g)
-
     print('sample test')
     sp = STSampler(g)
     for i in range(10):
         t = sp.sample()
-        print(isST(t))
+        print(is_st(t))
 
 
 # tests the distribution of ST_sampler 
@@ -203,4 +151,4 @@ def test_st_count():
     print(stc.counts)
         
 if __name__ == "__main__":
-    test_st_count()
+    test_sampler()

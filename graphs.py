@@ -1,7 +1,8 @@
-import random
-import pprint
+# this module contains all the helper functions for working with graphs
+
+import random, pprint, time
+import numpy as np
 from collections import defaultdict
-import time
 
 # print graph with nice formatting
 def printGraph(g):
@@ -37,52 +38,22 @@ def num_edges(g):
         total += len(v)
     return total // 2
 
-def make_complete_graph(n):
-    g = defaultdict(list)
-    for i in range(n):
-        for j in range(n):
-            if i == j:
-                continue
-            g[i].append(j)
-            g[j].append(i)
-    return g
+def is_st(g):
+    # connected
+    if is_connected(g) and num_edges(g) == len(g.keys()) - 1:
+        return True
+    else:
+        return False
 
-def make_random_graph(n, density):
-    # we want the graph to be connected, so we start with a spanning tree
-    g = make_random_st(n)
-    for i in range(n):
-        for j in range(n):
-            if i == j:
-                continue
-            if j in g[i]:
-                continue
-            if random.random() < density:
-                g[i].append(j)
-                g[j].append(i)
-    return g
+# checks that for each edge (u, v) in g, there is also (v, u) in g
+def is_undirected(g):
+    for u, nbrs in g.items():
+        for v in nbrs:
+            if not (u in g[v]):
+                return False
+    return True
 
-def make_random_st_dfs(n, v, visited, st):
-    visited.add(v)
-    # consider all other vertices except v as neighbors
-    neighbors = [x if x < v else x + 1 for x in range(n - 1)]
-    random.shuffle(neighbors)
-    for neighbor in neighbors:
-        if neighbor not in visited:
-            st[v].append(neighbor)
-            st[neighbor].append(v)
-            make_random_st_dfs(n, neighbor, visited, st)
-
-
-def make_random_st(n):
-    root = random.randint(0, n - 1)
-    visited = set()
-    st = defaultdict(list)
-    make_random_st_dfs(n, root, visited, st)
-    return st
-
-def get_random_graph(n, density, seed=None):
-    if (seed):
-        random.seed(seed)
+def get_random_graph(n, density):
     g1 = {}
     for i in range(n):
         g1[i] = []
@@ -95,7 +66,7 @@ def get_random_graph(n, density, seed=None):
                 g1[j].append(i)
     return g1
 
-def get_random_connected_graph(n, density, seed=None):
+def get_random_connected_graph(n, density):
     if (density == 0 and n > 1):
         print("this is impossible.")
         return None
@@ -110,6 +81,15 @@ def get_random_edge(g):
     random_u = random.choice(list(g.keys()))
     random_v = random.choice(g[random_u]) # g[u] is not empty, assuming g is connected
     return (random_u, random_v)
+
+# chooses a random edge from g, removes it from g, and returns the edge
+# modifies g
+def pop_random_edge(g):
+    e = get_random_edge(g)
+    u, v = e
+    g[u].remove(v)
+    g[v].remove(u)
+    return e
 
 # To examine distribution of spanning tree samplers, need a way to put same graphs into some same form
 # assuming the graph vertices are labelled with integers, can put the graph into standard form as
@@ -208,17 +188,28 @@ def test_contract():
     contract(g, (4, 5))
     printGraph(g)
 
-def test_contract_time():
-    total = 0
-    
-    for i in range(10):
-        t0 = time.time()
-        g = get_random_connected_graph(100, 0.1)
-        
-        t1 = time.time()
-        total += (t1 - t0)
+def get_degrees(g):
+    return [len(nbrs) for nbrs in g.values()]
 
-    print(total)
+# do a random walk on the graph and see what percentage of the graph we hit
+# this is our attempt at a cheap heuristic to determine the cover time
+def get_hit_rate(g, iterations, steps):
+    hit_rates = []
+    for _ in range(iterations):
+        hit = set()
+        v = random.sample(g.keys(), 1)[0] # choose random start vertex
+        hit.add(v)
+        for _ in range(steps):
+            v = random.sample(g[v], 1)[0]
+            hit.add(v)
+        hit_rate = len(hit) / len(g)
+        hit_rates.append(hit_rate)
+    return np.mean(hit_rates)
 
 if __name__ == "__main__":
-    test_contract_time()
+    g = get_random_connected_graph(20, 0.3)
+    d = get_degrees(g)
+    print(d)
+
+    hr = get_hit_rate(g, 30, 20**2)
+    print(hr)

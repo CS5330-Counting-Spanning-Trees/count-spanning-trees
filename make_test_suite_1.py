@@ -8,11 +8,6 @@ import graphs
 import mtt
 import os, copy, random
 
-def get_random_edge(g):
-    random_u = random.choice(list(g.keys()))
-    random_v = random.choice(g[random_u]) # g[u] is not empty, assuming g is connected
-    return (random_u, random_v)
-
 subdir = 'testsuite2'
 num_vertices_list = [20, 40, 60, 80, 100, 120]
 densities_list = [0.1, 0.3, 0.5, 0.7, 0.9]
