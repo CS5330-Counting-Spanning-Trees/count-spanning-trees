@@ -1,4 +1,4 @@
-import random, math
+import random, math, collections
 from fractions import Fraction
 from collections import defaultdict
 from mc_sampler import MCSampler
@@ -186,5 +186,123 @@ def unit_test_2():
     actual = mtt.MTT(g)
     print('error =', abs(nst - actual) / actual)
 
+
+def get_expansion_factor(c):
+    T = sum(c.values())
+    exp = 0
+    for di in c:
+        exp += c[di] * pow(2, di)
+    return Fraction(exp, T)
+    
+
+# approx counts the number of st of g
+# will modify g
+def approx_count(g, M1, M2):
+    if (graphs.num_edges(g) == len(g) - 1):
+        return 1
+    # pick first edge of g
+    #u = next(iter(g.keys()))
+    #v = g[u][0] # possible because g connected
+    # get random edge
+    u, v = graphs.get_random_edge(g)
+
+    # draw M1 samples to decide which case
+    sampler = st_sampler.STSampler(g)
+    has_e = 0
+    
+    for i in range(M1):
+        sample = sampler.sample()
+        if v in sample[u]:
+            has_e += 1
+        
+    print(f'has_e = {has_e}')
+    # decide if proportion of has_e > 0.5
+    if (2 * has_e > M1):
+        both_nbrs = set(g[v]).intersection(set(g[u])) # a vertex is a double if it is in this set
+        # contract g
+        graphs.contract(g, (u, v))
+
+        # we need to do some extra estimation, because st of the contracted g can be expanded in many ways
+        sampler = st_sampler.STSampler(g)
+        counter = collections.Counter() # counts freq of doubles
+        for i in range(M2):
+            sample = sampler.sample()
+            num_doubles = len(set(sample[u]).intersection(both_nbrs)) # u is now the node (u+v)
+            counter[num_doubles] += 1
+        exp = get_expansion_factor(counter)
+        print(f'exp factor = {exp}')
+
+        nst = mtt.MTT(g)
+        rec = approx_count(g, M1, M2)
+        est = rec
+        error = abs(est - nst) / nst * 100
+        print(f'actual = {nst}, estimated = {est}, error = {error}')
+
+        return rec * exp * M1 / has_e
+    else:
+        # delete e and recurse
+        g[u].remove(v)
+        g[v].remove(u)
+        nst = mtt.MTT(g)
+        rec = approx_count(g, M1, M2)
+        est = rec
+        error = abs(est - nst) / nst * 100
+        print(f'actual = {nst}, estimated = {est}, error = {error}')
+
+        return rec * M1 / (M1 - has_e)
+
+# approx counts the number of st of g
+# will modify g
+def approx_count_iter(g, M1, M2):
+    est = 1 # accumulates the multiplers here
+
+    while (graphs.num_edges(g) > len(g) - 1): # while we dont have a spanning tree
+        u, v = graphs.get_random_edge(g)
+        # draw M1 samples to decide which how to reduce the graph
+        sampler = st_sampler.STSampler(g)
+        has_e = 0
+
+        for i in range(M1):
+            sample = sampler.sample()
+            if v in sample[u]:
+                has_e += 1
+        print(f'has_e / M1 = {has_e}/{M1}')
+
+        # decide which of the 2 reductions to use
+        if (2 * has_e > M1): # has_e > 0.5
+            both_nbrs = set(g[v]).intersection(set(g[u])) # a vertex is a double if it is in this set
+            graphs.contract(g, (u, v))
+
+            #we need to do some extra estimation, because st of the contracted g can be expanded in many ways
+            sampler = st_sampler.STSampler(g)
+            counter = collections.Counter() # counts freq of doubles
+            for i in range(M2):
+                sample = sampler.sample()
+                num_doubles = len(set(sample[u]).intersection(both_nbrs)) # u is now the node (u+v)
+                counter[num_doubles] += 1
+            exp = get_expansion_factor(counter)
+
+            print('num_bad =', len(both_nbrs))
+            print(counter)
+            print(f'exp_factor = {exp.numerator / exp.denominator}')
+            if (exp > 1):
+                print('*' * 50)
+
+            # some debug info
+            est *= Fraction(M1, has_e) * exp
+        else:
+            # delete e and recurse
+            g[u].remove(v)
+            g[v].remove(u)
+            est *= Fraction(M1, M1 - has_e)
+    return round(est)
+
+def test():
+    g = graphs.get_random_connected_graph(20, 0.6)
+    nst = mtt.MTT(g)
+    est = approx_count_iter(g, 300, 300)
+    error = abs(est - nst) / nst * 100
+    print(f'Final: actual = {nst}, estimated = {est}, error = {error}')
+
 if __name__ == "__main__":   
-    unit_test_2()
+    test()

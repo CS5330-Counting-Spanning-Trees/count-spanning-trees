@@ -1,6 +1,7 @@
 import random
 import pprint
 from collections import defaultdict
+import time
 
 # print graph with nice formatting
 def printGraph(g):
@@ -79,7 +80,9 @@ def make_random_st(n):
     make_random_st_dfs(n, root, visited, st)
     return st
 
-def get_random_graph(n, density):
+def get_random_graph(n, density, seed=None):
+    if (seed):
+        random.seed(seed)
     g1 = {}
     for i in range(n):
         g1[i] = []
@@ -92,7 +95,7 @@ def get_random_graph(n, density):
                 g1[j].append(i)
     return g1
 
-def get_random_connected_graph(n, density):
+def get_random_connected_graph(n, density, seed=None):
     if (density == 0 and n > 1):
         print("this is impossible.")
         return None
@@ -168,3 +171,54 @@ def get_random_distribution(a, b, n):
     for i in range(n):
         d[random.randint(a, b)] += 1
     return d
+
+# contracts g about the given edge
+# modifies g
+def contract(g, edge):
+    u, v = edge
+
+    v_nbrs = g.pop(v)
+    v_nbrs.remove(u)
+    u_nbrs = g[u]
+    u_nbrs.remove(v)
+    v_and_u = set(v_nbrs).union(set(u_nbrs))
+    v_not_u = set(v_nbrs) - set(u_nbrs)
+    v_int_u = set(v_nbrs).intersection(set(u_nbrs))
+    
+    for w in v_not_u: # merge v into u
+        g[u].append(w)
+    for w in v_not_u: # replace v by u
+        g[w].remove(v)
+        g[w].append(u)
+    for w in v_int_u: # remove v
+        g[w].remove(v)
+
+def test_contract():
+    g = {}
+    g[1] = [4]
+    g[2] = [4, 5]
+    g[3] = [5]
+    g[4] = [1, 2, 5, 6]
+    g[5] = [2, 3, 4, 7]
+    g[6] = [4]
+    g[7] = [5, 8]
+    g[8] = [7]
+
+    printGraph(g)
+    contract(g, (4, 5))
+    printGraph(g)
+
+def test_contract_time():
+    total = 0
+    
+    for i in range(10):
+        t0 = time.time()
+        g = get_random_connected_graph(100, 0.1)
+        
+        t1 = time.time()
+        total += (t1 - t0)
+
+    print(total)
+
+if __name__ == "__main__":
+    test_contract_time()

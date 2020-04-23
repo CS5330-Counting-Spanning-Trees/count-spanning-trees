@@ -202,3 +202,5 @@ def test_st_count():
     print('The counts are:')
     print(stc.counts)
         
+if __name__ == "__main__":
+    test_st_count()
