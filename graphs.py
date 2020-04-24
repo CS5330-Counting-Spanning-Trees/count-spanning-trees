@@ -207,9 +207,10 @@ def get_hit_rate(g, iterations, steps):
     return np.mean(hit_rates)
 
 if __name__ == "__main__":
-    g = get_random_connected_graph(20, 0.3)
-    d = get_degrees(g)
-    print(d)
+    pass
+    g = get_random_connected_graph(130, 0.8)
+    # d = get_degrees(g)
+    # print(d)
 
-    hr = get_hit_rate(g, 30, 20**2)
+    hr = get_hit_rate(g, 30, 130 * 7)
     print(hr)

@@ -39,4 +39,5 @@ def plot_termwise_data():
     plt.savefig(save_path)
 
 if __name__ == "__main__":
+    pass
     #plot_termwise_data()

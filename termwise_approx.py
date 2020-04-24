@@ -2,6 +2,7 @@
 import pprint, copy, random, os, math
 import db, graphs, plotting
 import numpy as np
+import pandas as pd
 from mtt import MTT
 from st_sampler import STSampler
 from collections import defaultdict
@@ -22,7 +23,7 @@ def get_error(g, g_minus_one_edge, edge, actual_ratio, num_samples):
     mult_error = abs(r_est - actual_ratio) / actual_ratio
     return mult_error
 
-def run_tests():
+def run_testsuite():
     # we gonna test for all number of vertices, density, and sample_sizes
     # for each pair (num_vertices, density) we have 10 graphs - we will take average over all of them
     test_dir = 'testsuite2'
@@ -70,19 +71,12 @@ def run_tests():
 
     db.save_data(plotdata, save_path)
 
-# fetch data from data_path
-# plots the data, then saves the plot to save_path
-def plot__data(data_path, save_path):
-    data = db.load_data(data_path)
-    plotting.plot_data_and_save(data, save_path)
-
-# todo: write code to make some plotz
-
-# we empircally verify the number of samples needed for a good termwise approx
+#####################################
 
 def mult_error(est, actual):
     return abs(est - actual) / actual
 
+# theoretical number of samples required to obtain a (eps/2m, delta/m)-approximation for each term
 def calc_num_samples(g, eps, delta):
     n = len(g)
     m = graphs.num_edges(g)
@@ -90,55 +84,37 @@ def calc_num_samples(g, eps, delta):
     return round(12 * n * m**2 * logterm / eps**2)
 
 def sample_till_error_less_than(g, e, eps, actual):
+    upper_limit = 100000
     sampler = STSampler(g)
     has_e = 0
     num_samples = 0
-    while(mult_error(num_samples / (num_samples - has_e + 0.00000001), actual) > eps):
+    err = 0
+    while(num_samples < upper_limit):
+        denom = num_samples - has_e
+        if denom == 0:
+            err = 1
+        else:
+            err = mult_error(num_samples / (denom), actual)
+        if (err <= eps):
+            break
         # print(mult_error(num_samples / (num_samples - has_e + 0.00000001), actual))
         sample = sampler.sample()
         if e[1] in sample[e[0]]:
             has_e += 1
         num_samples += 1
+
+        if (num_samples % 200 == 0):
+            print(f'taking sample no. {num_samples}, err = {err}, eps = {eps}')
+
     return num_samples
 
-def est_num_samples_for_eps(g, e, actual, eps, num_runs):
+def avg_num_samples_for_eps(g, e, actual, eps, num_runs):
     total = 0
     for i in range(num_runs):
         print('run=', i)
         M = sample_till_error_less_than(g, e, eps, actual)
         total += M
     return total / num_runs
-
-def get_num_samples_needed(n, density, eps):
-    g1 = graphs.get_random_connected_graph(n, density)
-    u, v = graphs.get_random_edge(g1)
-    
-    g2 = copy.deepcopy(g1)
-    g2[u].remove(v) # remove (u,v) from g2. there is a small chance that this disconnects the graph
-    g2[v].remove(u)
-    nst1 = MTT(g1)
-    nst2 = MTT(g2)
-    e = (u, v)
-
-    return est_num_samples_for_eps(g1, e, nst1/nst2, eps, 50)
-
-def run_tests_2():
-    ns = [40, 60, 80, 100, 120]
-    paths = ['testsuite2/g1_' + str(n) + '_30.json' for n in ns]
-    Ks = []
-    for path in paths:
-        print(path)
-        data = db.load_data(path)
-        g1, nst1, g2, nst2, e = data
-        g1 = db.fix_keys(g1)
-        g2 = db.fix_keys(g2)
-
-        act = nst1 / nst2
-        K = est_num_samples_for_eps(g1, e, act, 0.01, 30)
-        Ks.append(K)
-
-    save_path = 'termwise-num-samples-for-0.01-error.json'
-    db.save_data(Ks, save_path)
 
 def run_tests_3():
     eps = 0.01
@@ -150,38 +126,59 @@ def run_tests_3():
         Ks.append(K)
     print(Ks)
 
-def run_test_4():
-    path = 'testsuite2/g1_100_30.json'
-    data = db.load_data(path)
-    g1, nst1, g2, nst2, e = data
-    g1 = db.fix_keys(g1)
-    g2 = db.fix_keys(g2)
+
+def make_row(n, density):
+    # params
+    num_runs = 10
+    final_eps = 0.01
+    final_delta = 0.01
+    iterations = 5
+    steps = int(n * math.log(n, 2))
+
+    g1 = graphs.get_random_connected_graph(n, density)
+    g2 = copy.deepcopy(g1)
+    e = graphs.pop_random_edge(g2)
+    if not graphs.is_connected(g2):
+        print('bad pop')
+        return None
+
+    # graph stats
+    m = graphs.num_edges(g1)
+    nst1 = MTT(g1)
+    nst2 = MTT(g2)
+    actual = nst1 / nst2
+    degrees = graphs.get_degrees(g1)
+    min_deg = min(degrees)
+    max_deg = max(degrees)
+    avg_deg = sum(degrees) / n
+    hit_rate = graphs.get_hit_rate(g1, iterations, steps)
     
-    act = nst1 / nst2
-    bad = 0
-    for i in range(300):
-        M = sample_till_error_less_than(g1, e, 0.01, act)
-        if M > 250:
-            bad += 1
-    print(f'bad / 300 = {bad}/{300}')
-    
+    eps = final_eps / (2 * m)
+    delta = final_delta / m
+    K = avg_num_samples_for_eps(g1, e, actual, eps, num_runs)
+
+    row = [n, density, m, min_deg, max_deg, avg_deg, nst1, nst2, hit_rate, K]
+    return row
+
 
 if __name__ == "__main__":
-    path = 'testsuite2/g1_100_30.json'
-    data = db.load_data(path)
-    g1, nst1, g2, nst2, e = data
-    g1 = db.fix_keys(g1)
-    g2 = db.fix_keys(g2)
+    # path = 'testsuite2/g1_100_30.json'
+    # data = db.load_data(path)
+    # g1, nst1, g2, nst2, e = data
+    # g1 = db.fix_keys(g1)
+    # g2 = db.fix_keys(g2)
+    # act = nst1 / nst2
 
-    M = calc_num_samples(g1, 0.01, 0.01)
-    print(M)
+    rows = []
+    for n in range(20, 30, 10):
+        for den in [0.2, 0.3, 0.4]:
+            for t in range(5):
+                r = make_row(120, 0.1)
+                # r = [n+den, n+den, n+den, n+den]
+                if r:
+                    rows.append(r)
+    
+    df = pd.DataFrame(rows)
+    df.to_csv('termwise.csv')
 
-    act = nst1 / nst2
-
-    #run_tests_3()
-    # n = 100
-    # m = 1485
-    # logterm = math.log(2 * m / 0.01, math.e)
-    # print(round(12 * n * m**2 * logterm / 0.01**2))
-
-    run_test_4()
+    pass
