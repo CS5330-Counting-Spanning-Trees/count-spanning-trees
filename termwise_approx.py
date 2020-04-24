@@ -170,15 +170,17 @@ if __name__ == "__main__":
     # act = nst1 / nst2
 
     rows = []
-    for n in range(20, 30, 10):
+    for n in range(20, 60, 10):
         for den in [0.2, 0.3, 0.4]:
             for t in range(5):
-                r = make_row(120, 0.1)
-                # r = [n+den, n+den, n+den, n+den]
+                r = make_row(n, 0.2)
+                # r = [n+den] * 10
                 if r:
                     rows.append(r)
     
-    df = pd.DataFrame(rows)
-    df.to_csv('termwise.csv')
+    cols = ['n', 'density', 'edges', 'min deg', 'max deg', 'avg deg', 'nst1', 'nst2', 'hit rate', 'K']
+    df = pd.DataFrame(rows, columns=cols)
+    # print(df)
+    df.to_csv('termwise2.csv')
 
     pass
