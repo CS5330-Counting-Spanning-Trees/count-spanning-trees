@@ -74,6 +74,14 @@ class Graph:
             print(f"{v}: {neighbors}")
         print(f"edges: {self.edges}")
 
+    def to_adj_list(self):
+        adj_list = defaultdict(list)
+        for edge_idx in self.edges:
+            u, v = self.edges[edge_idx]
+            adj_list[u].append(v)
+            adj_list[v].append(u)
+        return adj_list
+
 def test_graph():
     adj_list = {1: [2, 3], 2: [1, 3], 3: [1, 2, 4], 4: [3]}
     g = Graph(adj_list)
