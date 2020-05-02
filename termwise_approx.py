@@ -73,8 +73,11 @@ def run_testsuite():
 
 #####################################
 
-def mult_error(est, actual):
+def mult_error(est, actual):    
     return abs(est - actual) / actual
+
+def mult_error_log(log_est, log_actual):
+    return pow(math.e, log_est - log_actual) - 1
 
 # theoretical number of samples required to obtain a (eps/2m, delta/m)-approximation for each term
 def calc_num_samples(g, eps, delta):
@@ -83,7 +86,8 @@ def calc_num_samples(g, eps, delta):
     logterm = math.log(2 * m / delta, math.e)
     return round(12 * n * m**2 * logterm / eps**2)
 
-def sample_till_error_less_than(g, e, eps, actual):
+# log: says whether using log data or normal data (actual)
+def sample_till_error_less_than(g, e, eps, actual, log=False):
     upper_limit = 100000
     sampler = STSampler(g)
     has_e = 0
@@ -94,7 +98,10 @@ def sample_till_error_less_than(g, e, eps, actual):
         if denom == 0:
             err = 1
         else:
-            err = mult_error(num_samples / (denom), actual)
+            if log:
+                err = mult_error(math.log(num_samples / (denom), math.e), actual)
+            else:
+                err = mult_error(num_samples / (denom), actual)
         if (err <= eps):
             break
         # print(mult_error(num_samples / (num_samples - has_e + 0.00000001), actual))
@@ -108,24 +115,13 @@ def sample_till_error_less_than(g, e, eps, actual):
 
     return num_samples
 
-def avg_num_samples_for_eps(g, e, actual, eps, num_runs):
+def avg_num_samples_for_eps(g, e, actual, eps, num_runs, log=False):
     total = 0
     for i in range(num_runs):
         print('run=', i)
-        M = sample_till_error_less_than(g, e, eps, actual)
+        M = sample_till_error_less_than(g, e, eps, actual, log)
         total += M
     return total / num_runs
-
-def run_tests_3():
-    eps = 0.01
-    ns = list(range(40, 190, 10))
-    density = 0.3
-    Ks = []
-    for n in ns:
-        K = get_num_samples_needed(n, density, eps)
-        Ks.append(K)
-    print(Ks)
-
 
 def make_row(n, density):
     # params
@@ -160,6 +156,38 @@ def make_row(n, density):
     row = [n, density, m, min_deg, max_deg, avg_deg, nst1, nst2, hit_rate, K]
     return row
 
+def make_row_log(n, density):
+    # params
+    num_runs = 3
+    final_eps = 0.01
+    final_delta = 0.01
+    iterations = 5
+    steps = int(n * math.log(n, 2))
+
+    g1 = graphs.get_random_connected_graph(n, density)
+    g2 = copy.deepcopy(g1)
+    e = graphs.pop_random_edge(g2)
+    if not graphs.is_connected(g2):
+        print('bad pop')
+        return None
+
+    # graph stats
+    m = graphs.num_edges(g1)
+    nst1 = MTT(g1, log=True)
+    nst2 = MTT(g2, log=True)
+    actual = nst1 - nst2
+    degrees = graphs.get_degrees(g1)
+    min_deg = min(degrees)
+    max_deg = max(degrees)
+    avg_deg = sum(degrees) / n
+    hit_rate = graphs.get_hit_rate(g1, iterations, steps)
+    
+    eps = final_eps / (2 * m)
+    delta = final_delta / m
+    K = avg_num_samples_for_eps(g1, e, actual, eps, num_runs, log=True)
+
+    row = [n, density, m, min_deg, max_deg, avg_deg, nst1, nst2, hit_rate, K]
+    return row
 
 if __name__ == "__main__":
     # path = 'testsuite2/g1_100_30.json'
@@ -169,18 +197,33 @@ if __name__ == "__main__":
     # g2 = db.fix_keys(g2)
     # act = nst1 / nst2
 
-    rows = []
-    for n in range(70, 110, 10):
-        for den in [0.2, 0.3]:
-            for t in range(10):
-                r = make_row(n, den)
-                # r = [n+den] * 10
-                if r:
-                    rows.append(r)
+    # rows = []
+    # for n in range(70, 110, 10):
+    #     for den in [0.2, 0.3]:
+    #         for t in range(10):
+    #             r = make_row(n, den)
+    #             # r = [n+den] * 10
+    #             if r:
+    #                 rows.append(r)
     
-    cols = ['n', 'density', 'edges', 'min deg', 'max deg', 'avg deg', 'nst1', 'nst2', 'hit rate', 'K']
-    df = pd.DataFrame(rows, columns=cols)
-    # print(df)
-    df.to_csv('termwise3.csv')
+    # cols = ['n', 'density', 'edges', 'min deg', 'max deg', 'avg deg', 'nst1', 'nst2', 'hit rate', 'K']
+    # df = pd.DataFrame(rows, columns=cols)
+    # # print(df)
+    # df.to_csv('termwise3.csv')
 
+
+    # generate some data of low density graphs
+    path = 'overnight.json'
+    ns = [500, 1000, 2000, 4000, 8000, 20000]
+    nd = [(n, 10/n) for n in ns]
+    for t in range(3):
+        for n, den in nd:
+            try:
+                r = make_row_log(n, den)
+                if r:
+                    rows = db.load_data(path)
+                    rows.append(r)
+                    db.save_data(rows, path)
+            except:
+                pass
     pass

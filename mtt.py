@@ -1,7 +1,7 @@
 # Matrix tree theorem
 
 import numpy as np
-import copy
+import copy, math
 
 def print2d(matrix):
     for r in matrix:
@@ -46,7 +46,7 @@ def get_laplacian(adj_matrix):
     return L
 
                 
-def MTT(graph):
+def MTT(graph, log=False):
     m = get_adj_matrix(graph)
     
     L = get_laplacian(m)
@@ -58,8 +58,15 @@ def MTT(graph):
     
     # compute determinant
     arr = np.array(L)
-    det = np.linalg.det(arr)
-    return int(round(det))
+    det = 0
+    if log:
+        det = np.linalg.slogdet(arr)
+        return (det[1])
+    else:
+        det = np.linalg.det(arr)
+        return int(round(det))
+    #
+    
 
 def test():
     # cycle graph
@@ -116,3 +123,10 @@ def test():
     g5[11] = [7, 10, 12]
     g5[12] = [7, 11]
     print(MTT(g5) == 900)
+
+    # log det
+    d = MTT(g5, True)
+    print(900 == int(round(pow(math.e, d))))
+
+if __name__ == "__main__":
+    test()

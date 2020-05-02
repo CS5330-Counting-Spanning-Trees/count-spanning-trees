@@ -144,7 +144,7 @@ def approx_count_st_generic(g, sampler, num_samples_fn, num_edges_each_time_fn, 
                 if not contains_any_edges(sample, edges_to_add):
                     denominator += 1
 
-        result *= Fraction(num_samples, denominator)
+        result *= Fraction(num_samples_record[-1], denominator)
         #print(Fraction(num_samples, denominator))
         iterations += 1
 

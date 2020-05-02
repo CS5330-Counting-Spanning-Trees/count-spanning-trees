@@ -26,3 +26,8 @@ def fix_keys(g):
             d = k
         g_int[d] = v
     return g_int
+
+if __name__ == "__main__":
+    #p = 'overnight2.json'
+    #save_data([], p)
+    pass
