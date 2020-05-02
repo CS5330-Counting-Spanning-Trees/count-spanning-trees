@@ -29,12 +29,12 @@ def fix_keys(g):
     return g_int
 
 if __name__ == "__main__":
-    p = 'overnight.json'
-    #save_data([], p)
-    rows = load_data(p)
-    print(rows)
-    cols = ['n', 'density', 'edges', 'min deg', 'max deg', 'avg deg', 'log nst1', 'log nst2', 'hit rate', 'K']
-    df = pd.DataFrame(rows, columns=cols)
-    print(df)
-    df.to_csv('log_termwise3.csv')
+    # p = 'overnight.json'
+    # #save_data([], p)
+    # rows = load_data(p)
+    # print(rows)
+    # cols = ['n', 'density', 'edges', 'min deg', 'max deg', 'avg deg', 'log nst1', 'log nst2', 'hit rate', 'K']
+    # df = pd.DataFrame(rows, columns=cols)
+    # print(df)
+    # df.to_csv('log_termwise3.csv')
     pass

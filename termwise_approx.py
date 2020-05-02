@@ -6,72 +6,8 @@ import pandas as pd
 from mtt import MTT
 from st_sampler import STSampler
 from collections import defaultdict
-
-# this is the main testing function
-# g = graph
-# edge = the edge removed to get g_minus_one_edge
-# actual ratio = NST(g) / NST(g_minus_one_edge)
-# num_samples = number of samples we will draw to calculate the estimate
-def get_error(g, g_minus_one_edge, edge, actual_ratio, num_samples):
-    sampler = STSampler(g)
-    good = 0 # number of samples without the 'bad' edge
-    for i in range(num_samples):
-        t = sampler.sample()
-        if not (edge[1] in t[edge[0]]): # doesnt contains bad edge
-            good += 1
-    r_est = num_samples / good
-    mult_error = abs(r_est - actual_ratio) / actual_ratio
-    return mult_error
-
-def run_testsuite():
-    # we gonna test for all number of vertices, density, and sample_sizes
-    # for each pair (num_vertices, density) we have 10 graphs - we will take average over all of them
-    test_dir = 'testsuite2'
-    save_path = 'termwise2_plot_data.json'
-    sample_sizes = [10, 50, 100, 200, 300, 400, 500]
-    num_vertices_list = [20, 40, 60, 80, 100, 120]
-    densities_list = [0.1, 0.3, 0.5, 0.7, 0.9]
-    graph_number_list = list(range(1, 11))
-
-    # test_dir = 'testsuite3'
-    # save_path = 'termwise3_plot_data.json'
-    # sample_sizes = [10, 50, 100, 200]
-    # num_vertices_list = [40, 60, 80]
-    # densities_list = [0.3, 0.5, 0.7]
-    # graph_number_list = list(range(1, 6))
-
-    plotdata = defaultdict(list)
-    for n in num_vertices_list:
-        for density in densities_list:
-            mult_error_table = np.zeros((len(graph_number_list), len(sample_sizes)))
-            for gn in graph_number_list:
-                filename = 'g{}_{}_{}.json'.format(gn, n, int(100 * density))
-                path = (os.path.join(test_dir, filename))
-
-                data = db.load_data(path) # has the form [g1, NST(g1), g2, NST(g2), (u, v)]
-
-                g1 = db.fix_keys(data[0])
-                nst1 = data[1]
-                g2 = db.fix_keys(data[2])
-                nst2 = data[3]
-                e = data[4]
-
-                if (nst2 == 0): # the graph got disconnected, discard this point
-                    continue # this will skew our results a bit
-                r = nst1 / nst2
-                for i in range(len(sample_sizes)):
-                    mult_error = get_error(g1, g2, e, r, sample_sizes[i]) * 100 # in percent
-                    mult_error_table[gn-1][i] = mult_error
-
-            # take average along cols of mult_error_table
-            # covert to list and add to plot data
-            errors = list(np.mean(mult_error_table, axis=0))
-            dataset = list(zip(sample_sizes, errors))
-            plotdata[str((n, density))] = dataset
-
-    db.save_data(plotdata, save_path)
-
-#####################################
+from fractions import Fraction
+from decimal import Decimal
 
 def mult_error(est, actual):    
     return abs(est - actual) / actual
@@ -87,7 +23,7 @@ def calc_num_samples(g, eps, delta):
     return round(12 * n * m**2 * logterm / eps**2)
 
 # log: says whether using log data or normal data (actual)
-def sample_till_error_less_than(g, e, eps, actual, log=False):
+def sample_till_error_less_than(g, e, eps, actual):
     upper_limit = 100000
     sampler = STSampler(g)
     has_e = 0
@@ -98,13 +34,10 @@ def sample_till_error_less_than(g, e, eps, actual, log=False):
         if denom == 0:
             err = 1
         else:
-            if log:
-                err = mult_error(math.log(num_samples / (denom), math.e), actual)
-            else:
-                err = mult_error(num_samples / (denom), actual)
+            err = mult_error(Decimal(num_samples) / Decimal(denom), actual)
+        
         if (err <= eps):
             break
-        # print(mult_error(num_samples / (num_samples - has_e + 0.00000001), actual))
         sample = sampler.sample()
         if e[1] in sample[e[0]]:
             has_e += 1
@@ -125,7 +58,6 @@ def avg_num_samples_for_eps(g, e, actual, eps, num_runs, log=False):
 
 def make_row(n, density):
     # params
-    num_runs = 10
     final_eps = 0.01
     final_delta = 0.01
     iterations = 5
@@ -142,7 +74,7 @@ def make_row(n, density):
     m = graphs.num_edges(g1)
     nst1 = MTT(g1)
     nst2 = MTT(g2)
-    actual = nst1 / nst2
+    actual = Fraction(nst1, nst2)
     degrees = graphs.get_degrees(g1)
     min_deg = min(degrees)
     max_deg = max(degrees)
@@ -151,79 +83,30 @@ def make_row(n, density):
     
     eps = final_eps / (2 * m)
     delta = final_delta / m
-    K = avg_num_samples_for_eps(g1, e, actual, eps, num_runs)
+    K = sample_till_error_less_than(g1, e, eps, actual)
 
     row = [n, density, m, min_deg, max_deg, avg_deg, nst1, nst2, hit_rate, K]
     return row
 
-def make_row_log(n, density):
-    # params
-    num_runs = 3
-    final_eps = 0.01
-    final_delta = 0.01
-    iterations = 5
-    steps = int(n * math.log(n, 2))
+# generates data to be put into report
+# we want find K for various graphs n with density 10 / n
+def gen_data():
+    ns = list(range(30, 120, 10))
+    rows = []
+    for n in ns:
+        density = 10 / n
+        num_samples = n
+        r = make_row(n, density)
+        rows.append(r)
+        db.save_data(rows, 'rows1.json') # allows termination at any time
 
-    g1 = graphs.get_random_connected_graph(n, density)
-    g2 = copy.deepcopy(g1)
-    e = graphs.pop_random_edge(g2)
-    if not graphs.is_connected(g2):
-        print('bad pop')
-        return None
-
-    # graph stats
-    m = graphs.num_edges(g1)
-    nst1 = MTT(g1, log=True)
-    nst2 = MTT(g2, log=True)
-    actual = nst1 - nst2
-    degrees = graphs.get_degrees(g1)
-    min_deg = min(degrees)
-    max_deg = max(degrees)
-    avg_deg = sum(degrees) / n
-    hit_rate = graphs.get_hit_rate(g1, iterations, steps)
-    
-    eps = final_eps / (2 * m)
-    delta = final_delta / m
-    K = avg_num_samples_for_eps(g1, e, actual, eps, num_runs, log=True)
-
-    row = [n, density, m, min_deg, max_deg, avg_deg, nst1, nst2, hit_rate, K]
-    return row
+def make_csv():
+    rows = db.load_data('rows1.json')
+    cols = ['n', 'density', 'm', 'min deg', 'max deg', 'avg deg', 'nst1', 'nst2', 'hit rate', 'K']
+    df = pd.DataFrame(rows, columns=cols)
+    print(df)
+    df.to_csv('df1.csv')
 
 if __name__ == "__main__":
-    # path = 'testsuite2/g1_100_30.json'
-    # data = db.load_data(path)
-    # g1, nst1, g2, nst2, e = data
-    # g1 = db.fix_keys(g1)
-    # g2 = db.fix_keys(g2)
-    # act = nst1 / nst2
-
-    # rows = []
-    # for n in range(70, 110, 10):
-    #     for den in [0.2, 0.3]:
-    #         for t in range(10):
-    #             r = make_row(n, den)
-    #             # r = [n+den] * 10
-    #             if r:
-    #                 rows.append(r)
+    #gen_data()
     
-    # cols = ['n', 'density', 'edges', 'min deg', 'max deg', 'avg deg', 'nst1', 'nst2', 'hit rate', 'K']
-    # df = pd.DataFrame(rows, columns=cols)
-    # # print(df)
-    # df.to_csv('termwise3.csv')
-
-
-    # generate some data of low density graphs
-    path = 'overnight.json'
-    ns = [500, 1000, 2000, 4000, 8000, 20000]
-    nd = [(n, 10/n) for n in ns]
-    for t in range(3):
-        for n, den in nd:
-            try:
-                r = make_row_log(n, den)
-                if r:
-                    rows = db.load_data(path)
-                    rows.append(r)
-                    db.save_data(rows, path)
-            except:
-                pass
-    pass
