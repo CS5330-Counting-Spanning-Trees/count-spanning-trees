@@ -1,7 +1,10 @@
-from collections import defaultdict
+from collections import defaultdict, deque
 from graph import Graph
+from random_graphs import get_random_connected_graph
 from mtt import MTT
 from math import log, exp
+import time
+import random
 
 def edges_to_adj_list(g, edges):
     adj_list = defaultdict(list)
@@ -15,11 +18,11 @@ def get_neighborhood(g, edge_idx, max_depth):
     neighborhood_edges = set([edge_idx])
     u, v = g.get_edge(edge_idx)
     # store entries in the form (vertex, depth)
-    stack = [(u, 0), (v, 0)]
+    queue = deque([(u, 0), (v, 0)])
     visited = set([u, v])
     # do a dfs to get the set of edges that are within range
-    while len(stack) > 0:
-        curr, depth = stack.pop()
+    while len(queue) > 0:
+        curr, depth = queue.popleft()
         if depth == max_depth:
             continue
         adj_edges = g.get_edge_indices(curr)
@@ -29,9 +32,8 @@ def get_neighborhood(g, edge_idx, max_depth):
             if neighbor in visited:
                 continue
             visited.add(neighbor)
-            stack.append((neighbor, depth + 1))
-    # construct the adj list
-    return edges_to_adj_list(g, neighborhood_edges)
+            queue.append((neighbor, depth + 1))
+    return neighborhood_edges
 
 def approx_count_st_rec(g):
     g_edges = g.get_all_edge_indcies()
@@ -43,7 +45,8 @@ def approx_count_st_rec(g):
     # look around the neighborhood of the edge and count
     # number of ST in the neighborhood
     explore_factor = min(20, len(g_vertices))
-    neighborhood = get_neighborhood(g, edge_idx, explore_factor)
+    neighborhood_edges = get_neighborhood(g, edge_idx, explore_factor)
+    neighborhood = edges_to_adj_list(g, neighborhood_edges)
     neighborhood_st = MTT(neighborhood, use_log=True)
     # contract that edge from the neighborhood, and count
     # number of ST with the contracted edge
@@ -76,8 +79,10 @@ def approx_count_st(g):
         u, v = g.get_edge(edge_idx)
         # look around the neighborhood of the edge and count
         # number of ST in the neighborhood
-        explore_factor = min(20, len(g_vertices))
-        neighborhood = get_neighborhood(g, edge_idx, explore_factor)
+        # explore_factor = min(20, len(g_vertices))
+        explore_factor = 5
+        neighborhood_edges = get_neighborhood(g, edge_idx, explore_factor)
+        neighborhood = edges_to_adj_list(g, neighborhood_edges)
         neighborhood_st = MTT(neighborhood, use_log=True)
         # contract that edge from the neighborhood, and count
         # number of ST with the contracted edge
@@ -100,27 +105,95 @@ def approx_count_st(g):
             denominator += q
     return -denominator
 
+def test_accuracy(n, density, seed, max_degree):
+    print(
+        f"Running with n: {n}, density: {density}, seed: {seed}, max_degree: {max_degree}")
+    adj_list = get_random_connected_graph(
+        n, density, seed, max_degree=max_degree)
+    g = Graph(adj_list)
+    g_edges = g.get_all_edge_indcies()
+    edge_idx = g_edges[0]
+    u, v = g.get_edge(edge_idx)
 
-def test_get_neighborhood():
-    g_adj_list = {
-        1: [2, 3, 4],
-        2: [1, 3],
-        3: [1, 2],
-        4: [1, 5],
-        5: [4, 6],
-        6: [5],
-    }
-    g = Graph(g_adj_list)
-    edge_idx = g.get_edge_between_vertices(2, 3)
-    n = get_neighborhood(g, edge_idx, 2)
-    print(n)
-    g.contract(edge_idx)
-    edge_idx = g.get_edge_between_vertices(1, 2)
-    n = get_neighborhood(g, edge_idx, 2)
-    print(n)
-    num_st = MTT(n)
-    print(f"MTT: {num_st}")
+    # test_neighborhood(g, edge_idx)
 
+    # calculate the actual p
+    total_st = MTT(adj_list, use_log=True)
+    # use a copy of the graph since we need the unmodified graph later
+    g_copy = Graph(adj_list)
+    g_copy.contract(g_copy.get_edge_between_vertices(u, v))
+    with_e_st = MTT(g_copy.to_adj_list(), use_log=True)
+    p = with_e_st - total_st
+
+    explore_factor = 1
+    # thresholds = [1, 0.5, 0.1, 0.01, 0.001,
+    #               0.0001, 0.00001, 0.000001, 0.0000001, 0.00000001]
+    # threshold_idx = 0
+    while explore_factor < 4:
+        start = time.time_ns()
+        neighborhood_edges = get_neighborhood(g, edge_idx, explore_factor)
+        neighborhood = edges_to_adj_list(g, neighborhood_edges)
+        neighborhood_st = MTT(neighborhood, use_log=True)
+        neighborhood_g = Graph(neighborhood)
+        neighborhood_edge_idx = neighborhood_g.get_edge_between_vertices(u, v)
+        neighborhood_g.contract(neighborhood_edge_idx)
+        neighborhood_with_e = neighborhood_g.to_adj_list()
+        neighborhood_with_e_st = MTT(neighborhood_with_e, use_log=True)
+        end = time.time_ns()
+        elapsed_ms = (end - start) / (10 ** 6)
+        p_est = neighborhood_with_e_st - neighborhood_st
+        error = abs(1 - exp(p - p_est))
+        neighborhood_edge_size = len(neighborhood_edges)
+        neighborhood_vertex_size = len(neighborhood)
+        print(
+            f"with depth {explore_factor} achieved error {error:.16f} ({elapsed_ms} ms) (neighborhood vertices: {neighborhood_vertex_size}) (neighborhood edges: {neighborhood_edge_size})")
+        # while error < thresholds[threshold_idx]:
+        #     print(f"hit threshold {thresholds[threshold_idx]} with depth {explore_factor}")
+        #     threshold_idx += 1
+        #     if threshold_idx == len(thresholds):
+        #         break
+        explore_factor += 1
+
+
+def test_again():
+    for n in [100, 500, 1000, 5000, 10000]:
+        adj_list = get_random_connected_graph(n, 0.1, seed=0, max_degree=5)
+        g = Graph(adj_list)
+        g_edges = g.get_all_edge_indcies()
+        edge_idx = g_edges[0]
+        u, v = g.get_edge(edge_idx)
+
+        # calculate the actual p
+        total_st = MTT(adj_list, use_log=True)
+        # use a copy of the graph since we need the unmodified graph later
+        g_copy = Graph(adj_list)
+        g_copy.contract(g_copy.get_edge_between_vertices(u, v))
+        with_e_st = MTT(g_copy.to_adj_list(), use_log=True)
+        p = with_e_st - total_st
+
+        explore_factor = 1
+        threshold = 0.001
+        while True:
+            start = time.time_ns()
+            neighborhood_edges = get_neighborhood(g, edge_idx, explore_factor)
+            neighborhood = edges_to_adj_list(g, neighborhood_edges)
+            neighborhood_st = MTT(neighborhood, use_log=True)
+            neighborhood_g = Graph(neighborhood)
+            neighborhood_edge_idx = neighborhood_g.get_edge_between_vertices(u, v)
+            neighborhood_g.contract(neighborhood_edge_idx)
+            neighborhood_with_e = neighborhood_g.to_adj_list()
+            neighborhood_with_e_st = MTT(neighborhood_with_e, use_log=True)
+            end = time.time_ns()
+            elapsed_ms = (end - start) / (10 ** 6)
+            p_est = neighborhood_with_e_st - neighborhood_st
+            error = abs(1 - exp(p - p_est))
+            neighborhood_vertex_size = len(neighborhood)
+            if error < threshold:
+                print(f"for n = {n}, hit threshold of {threshold} with explore depth {explore_factor} ({elapsed_ms} ms) (neighberhood size: {neighborhood_vertex_size})")
+                break
+            explore_factor += 1
 
 if __name__ == "__main__":
-    test_get_neighborhood()
+    # test_get_neighborhood()
+    # test_accuracy(5000, 0.1, 0, max_degree=5)
+    test_again()

@@ -16,7 +16,7 @@ def approx_count_st(g):
     # we sample k st from g and see how many has the edge
     # for now we use k = 100
     # TODO(marvin): use adaptive sampling
-    k = 1000
+    k = 100
     sampler = STSampler(g)
     has_e = 0
     for _ in range(k):
