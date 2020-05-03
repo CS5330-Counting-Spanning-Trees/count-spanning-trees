@@ -1,5 +1,5 @@
 # Experiments for approximating the term NST(G_i) / NST(G_{i-1})
-import pprint, copy, random, os, math
+import pprint, copy, random, os, math, time
 import db, graphs, plotting
 import numpy as np
 import pandas as pd
@@ -13,7 +13,7 @@ def mult_error(est, actual):
     return abs(est - actual) / actual
 
 def mult_error_log(log_est, log_actual):
-    return pow(math.e, log_est - log_actual) - 1
+    return math.exp(log_est - log_actual) - 1
 
 # theoretical number of samples required to obtain a (eps/2m, delta/m)-approximation for each term
 def calc_num_samples(g, eps, delta):
@@ -22,7 +22,6 @@ def calc_num_samples(g, eps, delta):
     logterm = math.log(2 * m / delta, math.e)
     return round(12 * n * m**2 * logterm / eps**2)
 
-# log: says whether using log data or normal data (actual)
 def sample_till_error_less_than(g, e, eps, actual):
     upper_limit = 100000
     sampler = STSampler(g)
@@ -35,7 +34,6 @@ def sample_till_error_less_than(g, e, eps, actual):
             err = 1
         else:
             err = mult_error(Decimal(num_samples) / Decimal(denom), actual)
-        
         if (err <= eps):
             break
         sample = sampler.sample()
@@ -74,7 +72,7 @@ def make_row(n, density):
     m = graphs.num_edges(g1)
     nst1 = MTT(g1)
     nst2 = MTT(g2)
-    actual = Fraction(nst1, nst2)
+    actual = Decimal(nst1) / Decimal(nst2)
     degrees = graphs.get_degrees(g1)
     min_deg = min(degrees)
     max_deg = max(degrees)
@@ -83,30 +81,36 @@ def make_row(n, density):
     
     eps = final_eps / (2 * m)
     delta = final_delta / m
+    t0 = time.time()
     K = sample_till_error_less_than(g1, e, eps, actual)
+    t1 = time.time()
 
-    row = [n, density, m, min_deg, max_deg, avg_deg, nst1, nst2, hit_rate, K]
+    row = [n, density, m, min_deg, max_deg, avg_deg, nst1, nst2, hit_rate, K, t1-t0]
     return row
 
 # generates data to be put into report
 # we want find K for various graphs n with density 10 / n
 def gen_data():
-    ns = list(range(30, 120, 10))
-    rows = []
+    ns = list(range(30, 150, 10))
+    rows = db.load_data('rows1_batch2.json')
     for n in ns:
-        density = 10 / n
-        num_samples = n
-        r = make_row(n, density)
-        rows.append(r)
-        db.save_data(rows, 'rows1.json') # allows termination at any time
+        try:
+            density = 10 / n
+            r = make_row(n, density)
+            print('row:', r)
+            rows.append(r)
+            db.save_data(rows, 'rows1_batch2.json') # allows termination at any time
+        except KeyboardInterrupt:
+            raise
+        except:
+            pass
 
 def make_csv():
-    rows = db.load_data('rows1.json')
-    cols = ['n', 'density', 'm', 'min deg', 'max deg', 'avg deg', 'nst1', 'nst2', 'hit rate', 'K']
+    rows = db.load_data('rows1_batch2.json')
+    cols = ['n', 'density', 'm', 'min deg', 'max deg', 'avg deg', 'nst1', 'nst2', 'hit rate', 'K', 'time']
     df = pd.DataFrame(rows, columns=cols)
     print(df)
-    df.to_csv('df1.csv')
+    df.to_csv('rows1_batch2.csv')
 
 if __name__ == "__main__":
-    #gen_data()
-    
+    make_csv()
