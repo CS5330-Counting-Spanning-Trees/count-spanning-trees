@@ -4,7 +4,7 @@
 # where g1 is a graph, and g2 is g1 with the edge (u,v) removed
 
 import db
-import graphs
+import random_graphs
 import mtt
 import os, copy, random
 
@@ -26,7 +26,7 @@ graph_number_list = list(range(1, 11))
 
 try:
     os.mkdir(subdir)
-    print("Directory " , subdir ,  " Created ") 
+    print("Directory " , subdir ,  " Created ")
 except FileExistsError:
     print("Directory " , subdir ,  " already exists")
 
@@ -36,9 +36,9 @@ for n in num_vertices_list:
             filename = 'g{}_{}_{}.json'.format(i, n, int(100*p))
             path = os.path.join(subdir, filename)
 
-            g1 = graphs.get_random_connected_graph(n, p)
+            g1 = random_graphs.get_random_connected_graph(n, p)
             u, v = get_random_edge(g1)
-        
+
             g2 = copy.deepcopy(g1)
             g2[u].remove(v) # remove (u,v) from g2. there is a small chance that this disconnects the graph
             g2[v].remove(u)
