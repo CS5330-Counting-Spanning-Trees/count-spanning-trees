@@ -126,10 +126,7 @@ def test_accuracy(n, density, seed, max_degree):
     p = with_e_st - total_st
 
     explore_factor = 1
-    # thresholds = [1, 0.5, 0.1, 0.01, 0.001,
-    #               0.0001, 0.00001, 0.000001, 0.0000001, 0.00000001]
-    # threshold_idx = 0
-    while explore_factor < 4:
+    while explore_factor < 10:
         start = time.time_ns()
         neighborhood_edges = get_neighborhood(g, edge_idx, explore_factor)
         neighborhood = edges_to_adj_list(g, neighborhood_edges)
@@ -147,15 +144,10 @@ def test_accuracy(n, density, seed, max_degree):
         neighborhood_vertex_size = len(neighborhood)
         print(
             f"with depth {explore_factor} achieved error {error:.16f} ({elapsed_ms} ms) (neighborhood vertices: {neighborhood_vertex_size}) (neighborhood edges: {neighborhood_edge_size})")
-        # while error < thresholds[threshold_idx]:
-        #     print(f"hit threshold {thresholds[threshold_idx]} with depth {explore_factor}")
-        #     threshold_idx += 1
-        #     if threshold_idx == len(thresholds):
-        #         break
         explore_factor += 1
 
 
-def test_again():
+def test_neighborhood_size():
     for n in [100, 500, 1000, 5000, 10000]:
         adj_list = get_random_connected_graph(n, 0.1, seed=0, max_degree=5)
         g = Graph(adj_list)
@@ -192,8 +184,3 @@ def test_again():
                 print(f"for n = {n}, hit threshold of {threshold} with explore depth {explore_factor} ({elapsed_ms} ms) (neighberhood size: {neighborhood_vertex_size})")
                 break
             explore_factor += 1
-
-if __name__ == "__main__":
-    # test_get_neighborhood()
-    # test_accuracy(5000, 0.1, 0, max_degree=5)
-    test_again()
