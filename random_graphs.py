@@ -69,52 +69,6 @@ def get_random_graph(n, density, max_degree, min_degree):
                 g1[j].append(i)
     return g1
 
-def get_random_regular_graph(n, degree):
-    g = defaultdict(list)
-
-    S = set()
-    for i in range(n):
-        for j in range(i + 1, n):
-            # all edges (x, y) in S have x < y
-            S.add((i, j))
-    while S:
-        u, v = random.sample(S, 1)[0]
-        d_u = len(g[u])
-        d_v = len(g[v])
-        p = ((degree - d_u) * (degree - d_v)) / (degree ** 2)
-        r = random.random()
-        if r < p:
-            g[u].append(v)
-            g[v].append(u)
-            S.remove((u, v))
-            if d_u == degree - 1:
-                for i in range(n):
-                    if i == u:
-                        continue
-                    elif i < u:
-                        S.discard((i, u))
-                    else:
-                        S.discard((u, i))
-            if d_v == degree - 1:
-                for i in range(n):
-                    if i == v:
-                        continue
-                    elif i < v:
-                        S.discard((i, v))
-                    else:
-                        S.discard((v, i))
-    return g
-
-
-def get_random_connected_regular_graph(n, degree, seed=None):
-    if seed is not None:
-        random.seed(seed)
-    while True:
-        g = get_random_regular_graph(n, degree)
-        if is_connected(g):
-            return g
-
-
 def get_random_connected_graph(n, density, seed = None, max_degree = np.inf, min_degree = 0):
     # set a fixed seed
     if seed is not None:
@@ -228,9 +182,8 @@ def test_random_graphs(seed = None):
 
 if __name__ == "__main__":
     print(get_random_connected_graph(1000, 4, 0, max_degree=5))
-    # import time
-    # print("\n")
-    # test_complete_graphs()
-    # print("\n")
-    # test_random_graphs(seed = 1)
-    # print("\n")
+    print("\n")
+    test_complete_graphs()
+    print("\n")
+    test_random_graphs(seed = 1)
+    print("\n")

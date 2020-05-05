@@ -26,4 +26,4 @@ def run_compare(n, density, seed, max_degree):
     count_approx(adj_list)
 
 if __name__ == "__main__":
-    run_compare(5000, 0.1, 0, 5)
+    run_compare(100, 0.1, 0, 5)
