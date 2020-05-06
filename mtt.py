@@ -7,68 +7,45 @@ def print2d(matrix):
     for r in matrix:
         print(r)
 
-# given a graph as adjList
-# returns the adj matrix of the graph
-# right now, just gonna arbitrarily label the vertices by 0 to n-1
-def get_adj_matrix(graph):
-    n = len(graph)
-    vertices = [] # label[i] stores the actual vertex that we have relabel to i
-    
-    for u in graph.keys(): # first find all the vertices
-        vertices.append(u)
+def get_mapping(vertices):
+    mapping = {}
+    idx = 0
+    for v in vertices:
+        mapping[v] = idx
+        idx += 1
+    return mapping
 
-    labels = {} # labels stores the reverse mapping, from vertex to its number
-    for i in range(len(vertices)):
-        labels[vertices[i]] = i
-
-    #print(labels)
-    matrix = []
-    for r in range(n):
-        u = vertices[r]
-        row = [0] * n # create this row
-        nbrs = graph[u]
-        for v in nbrs:
-            #print(r, v)
-            row[labels[v]] = 1
-        matrix.append(row)
+# returns the laplacian matrix without the last row and column
+def get_laplacian_prime(adj_list):
+    n = len(adj_list) - 1
+    matrix = np.zeros((n, n), dtype=int)
+    mapping = get_mapping(adj_list.keys())
+    for u in adj_list:
+        u_idx = mapping[u]
+        if u_idx == n:
+            continue
+        neighbors = adj_list[u]
+        degree = len(neighbors)
+        matrix[u_idx][u_idx] = degree
+        for v in adj_list[u]:
+            v_idx = mapping[v]
+            if v_idx == n:
+                continue
+            matrix[u_idx][v_idx] -= 1
     return matrix
 
-def get_laplacian(adj_matrix):
-    L = copy.deepcopy(adj_matrix)
-    for i in range(len(L)):
-        row = L[i]
-        degree = 0
-        for j in range(len(row)):
-            if row[j] == 1: # flip all signs in the row
-                degree += 1
-                row[j] = -1
-        row[i] = degree
-    return L
-
-                
-def MTT(graph, log=False):
-    m = get_adj_matrix(graph)
-    
-    L = get_laplacian(m)
-    
-    # delete last row and col of L
-    del L[-1]
-    for row in L:
-        del row[-1]
-    
+# return in natural log scale, if the use_log flag is set
+def MTT(adj_list, use_log = False):
+    L = get_laplacian_prime(adj_list)
     # compute determinant
-    arr = np.array(L)
-    det = 0
-    if log:
-        det = np.linalg.slogdet(arr)
-        return (det[1])
+    if use_log:
+        _, logdet = np.linalg.slogdet(L)
+        return logdet
     else:
-        det = np.linalg.det(arr)
+        det = np.linalg.det(L)
         return int(round(det))
-    #
-    
 
-def test():
+def test_mtt():
     # cycle graph
     g1 = {}
     g1[1] = [2, 4]
@@ -83,7 +60,7 @@ def test():
     g2[2] = [1, 3, 4]
     g2[3] = [1, 2, 4]
     g2[4] = [1, 2, 3]
-    print(MTT(g2) == 16) 
+    print(MTT(g2) == 16)
 
     # two copies of K_4, joined together by vertex 9
     g3 = {}
@@ -124,9 +101,5 @@ def test():
     g5[12] = [7, 11]
     print(MTT(g5) == 900)
 
-    # log det
-    d = MTT(g5, True)
-    print(900 == int(round(pow(math.e, d))))
-
 if __name__ == "__main__":
-    test()
+    test_mtt()

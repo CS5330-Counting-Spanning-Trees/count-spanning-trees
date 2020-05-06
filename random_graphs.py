@@ -3,6 +3,10 @@
 import random, pprint, time
 import numpy as np
 from collections import defaultdict
+import time
+
+import numpy as np
+from mtt import MTT
 
 # print graph with nice formatting
 def printGraph(g):
@@ -24,7 +28,7 @@ def is_connected(g):
             if not visited[nbr]:
                 stack.append(nbr)
                 visited[nbr] = True
-    for k, v in visited.items():
+    for v in visited.values():
         if not v:
             return False
     return True
@@ -34,7 +38,7 @@ def is_connected(g):
 # useful for sanity checks
 def num_edges(g):
     total = 0
-    for k, v in g.items():
+    for v in g.values():
         total += len(v)
     return total // 2
 
@@ -60,26 +64,34 @@ def is_undirected(g):
                 return False
     return True
 
-def get_random_graph(n, density):
+def get_random_graph(n, density, max_degree, min_degree):
     g1 = {}
     for i in range(n):
         g1[i] = []
     for i in range(n):
-        for j in range(n):
-            if not (i < j):
+        candidates = [x for x in range(i + 1, n)]
+        random.shuffle(candidates)
+        for j in candidates:
+            if len(g1[i]) >= max_degree:
+                break
+            if len(g1[j]) >= max_degree:
                 continue
-            if random.random() < density:
+            if len(g1[i]) < min_degree or random.random() < density:
                 g1[i].append(j)
                 g1[j].append(i)
     return g1
 
-def get_random_connected_graph(n, density):
+def get_random_connected_graph(n, density, seed = None, max_degree = np.inf, min_degree = 0):
+    # set a fixed seed
+    if seed is not None:
+        random.seed(seed)
+
     if (density == 0 and n > 1):
         print("this is impossible.")
         return None
-    g = get_random_graph(n, density)
+    g = get_random_graph(n, density, max_degree, min_degree)
     while not is_connected(g):
-        g = get_random_graph(n, density)
+        g = get_random_graph(n, density, max_degree, min_degree)
     return g
 
  # chooses a random edge from g and returns it
@@ -110,28 +122,28 @@ def tarjans(g):
     # for u, v in connections:
     #     g[u].append(v)
     #     g[v].append(u)
-            
+
     N = len(connections)
     lev = [None] * N
     low = [None] * N
-        
+
     def dfs(node, par, level):
         # already visited
         if lev[node] is not None:
-            return 
-            
+            return
+
         lev[node] = low[node] = level
         for nei in g[node]:
             if not lev[nei]:
                 dfs(nei, node, level + 1)
-            
+
         # minimal level in the neignbors, exclude the parent
-        cur = min([level] + [low[nei] for nei in g[node] if nei != par])    
+        cur = min([level] + [low[nei] for nei in g[node] if nei != par])
         low[node] = cur
         # print(low, lev)
-        
+
     dfs(0, None, 0)
-        
+
     ans = []
     for u, v in connections:
         if u >= v:
@@ -157,19 +169,19 @@ def get_standard_form(g):
     return [num_vertices, edges]
 
 def test_sf():
-    g = make_random_graph(5, 1)
+    g = get_random_connected_graph(5, 1)
     sf = get_standard_form(g)
     pp = pprint.PrettyPrinter()
     pp.pprint(g)
     pp.pprint(sf)
 
-    g = make_random_graph(10, 0.3)
+    g = get_random_connected_graph(10, 0.3)
     sf = get_standard_form(g)
     pp = pprint.PrettyPrinter()
     pp.pprint(g)
     pp.pprint(sf)
 
-    g = make_random_graph(10, 0.3)
+    g = get_random_connected_graph(10, 0.3)
     del g[0]
     sf = get_standard_form(g)
     pp = pprint.PrettyPrinter()
@@ -197,7 +209,7 @@ class ST_counter:
 # this is the benchmark of what a uniform distribution ought to look like
 def get_random_distribution(a, b, n):
     d = defaultdict(int)
-    for i in range(n):
+    for _ in range(n):
         d[random.randint(a, b)] += 1
     return d
 
@@ -213,7 +225,7 @@ def contract(g, edge):
     v_and_u = set(v_nbrs).union(set(u_nbrs))
     v_not_u = set(v_nbrs) - set(u_nbrs)
     v_int_u = set(v_nbrs).intersection(set(u_nbrs))
-    
+
     for w in v_not_u: # merge v into u
         g[u].append(w)
     for w in v_not_u: # replace v by u
