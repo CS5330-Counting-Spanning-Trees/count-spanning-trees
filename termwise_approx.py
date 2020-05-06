@@ -22,6 +22,7 @@ def calc_num_samples(g, eps, delta):
     logterm = math.log(2 * m / delta, math.e)
     return round(12 * n * m**2 * logterm / eps**2)
 
+# draws samples until the error is within eps of the true value actual
 def sample_till_error_less_than(g, e, eps, actual):
     upper_limit = 100000
     sampler = STSampler(g)
