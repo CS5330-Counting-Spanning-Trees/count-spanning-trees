@@ -1,6 +1,6 @@
 # Experiments for approximating the term NST(G_i) / NST(G_{i-1})
 import pprint, copy, random, os, math, time
-import db, graphs, plotting
+import db, random_graphs, plotting
 import numpy as np
 import pandas as pd
 from mtt import MTT
@@ -9,7 +9,7 @@ from collections import defaultdict
 from fractions import Fraction
 from decimal import Decimal
 
-def mult_error(est, actual):    
+def mult_error(est, actual):
     return abs(est - actual) / actual
 
 def mult_error_log(log_est, log_actual):
@@ -18,7 +18,7 @@ def mult_error_log(log_est, log_actual):
 # theoretical number of samples required to obtain a (eps/2m, delta/m)-approximation for each term
 def calc_num_samples(g, eps, delta):
     n = len(g)
-    m = graphs.num_edges(g)
+    m = random_graphs.num_edges(g)
     logterm = math.log(2 * m / delta, math.e)
     return round(12 * n * m**2 * logterm / eps**2)
 
@@ -62,24 +62,24 @@ def make_row(n, density):
     iterations = 5
     steps = int(n * math.log(n, 2))
 
-    g1 = graphs.get_random_connected_graph(n, density)
+    g1 = random_graphs.get_random_connected_graph(n, density)
     g2 = copy.deepcopy(g1)
-    e = graphs.pop_random_edge(g2)
-    if not graphs.is_connected(g2):
+    e = random_graphs.pop_random_edge(g2)
+    if not random_graphs.is_connected(g2):
         print('bad pop')
         return None
 
     # graph stats
-    m = graphs.num_edges(g1)
+    m = random_graphs.num_edges(g1)
     nst1 = MTT(g1)
     nst2 = MTT(g2)
     actual = Decimal(nst1) / Decimal(nst2)
-    degrees = graphs.get_degrees(g1)
+    degrees = random_graphs.get_degrees(g1)
     min_deg = min(degrees)
     max_deg = max(degrees)
     avg_deg = sum(degrees) / n
-    hit_rate = graphs.get_hit_rate(g1, iterations, steps)
-    
+    hit_rate = random_graphs.get_hit_rate(g1, iterations, steps)
+
     eps = final_eps / (2 * m)
     delta = final_delta / m
     t0 = time.time()
