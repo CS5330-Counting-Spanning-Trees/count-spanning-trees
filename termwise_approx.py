@@ -88,29 +88,32 @@ def make_row(n, density):
     row = [n, density, m, min_deg, max_deg, avg_deg, nst1, nst2, hit_rate, K, t1-t0]
     return row
 
-# generates data to be put into report
+fjson = 'rows1_batch2.json'
+fcsv = fcsv = 'rows1_batch2.json'
+
+
 # we want find K for various graphs n with density 10 / n
 def gen_data():
     ns = list(range(30, 150, 10))
-    rows = db.load_data('rows1_batch2.json')
+    rows = db.load_data(fjson)
     for n in ns:
         try:
             density = 10 / n
             r = make_row(n, density)
             print('row:', r)
             rows.append(r)
-            db.save_data(rows, 'rows1_batch2.json') # allows termination at any time
+            db.save_data(rows, fjson) # allows termination at any time
         except KeyboardInterrupt:
             raise
         except:
             pass
 
 def make_csv():
-    rows = db.load_data('rows1_batch2.json')
+    rows = db.load_data(fjson)
     cols = ['n', 'density', 'm', 'min deg', 'max deg', 'avg deg', 'nst1', 'nst2', 'hit rate', 'K', 'time']
     df = pd.DataFrame(rows, columns=cols)
     print(df)
-    df.to_csv('rows1_batch2.csv')
+    df.to_csv(fcsv)
 
 if __name__ == "__main__":
     make_csv()

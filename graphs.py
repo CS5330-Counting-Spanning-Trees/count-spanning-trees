@@ -38,6 +38,13 @@ def num_edges(g):
         total += len(v)
     return total // 2
 
+def get_edges(g):
+    edges = []
+    for u, nbrs in g.items():
+        for v in nbrs:
+            edges.append((u,v))
+    return edges
+
 def is_st(g):
     # connected
     if is_connected(g) and num_edges(g) == len(g.keys()) - 1:
@@ -90,6 +97,48 @@ def pop_random_edge(g):
     g[u].remove(v)
     g[v].remove(u)
     return e
+
+def del_edge(g, e):
+    u, v = e
+    g[u].remove(v)
+    g[v].remove(u)
+
+def tarjans(g):
+    n = len(g)
+    connections = get_edges(g)
+    # g = collections.defaultdict(list)
+    # for u, v in connections:
+    #     g[u].append(v)
+    #     g[v].append(u)
+            
+    N = len(connections)
+    lev = [None] * N
+    low = [None] * N
+        
+    def dfs(node, par, level):
+        # already visited
+        if lev[node] is not None:
+            return 
+            
+        lev[node] = low[node] = level
+        for nei in g[node]:
+            if not lev[nei]:
+                dfs(nei, node, level + 1)
+            
+        # minimal level in the neignbors, exclude the parent
+        cur = min([level] + [low[nei] for nei in g[node] if nei != par])    
+        low[node] = cur
+        # print(low, lev)
+        
+    dfs(0, None, 0)
+        
+    ans = []
+    for u, v in connections:
+        if u >= v:
+            continue
+        if low[u] > lev[v] or low[v] > lev[u]:
+            ans.append([u, v])
+    return ans
 
 # To examine distribution of spanning tree samplers, need a way to put same graphs into some same form
 # assuming the graph vertices are labelled with integers, can put the graph into standard form as
