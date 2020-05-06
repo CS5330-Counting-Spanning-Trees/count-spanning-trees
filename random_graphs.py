@@ -1,7 +1,7 @@
-#!/usr/bin/env python3
+# this module contains all the helper functions for working with graphs
 
-import random
-import pprint
+import random, pprint, time
+import numpy as np
 from collections import defaultdict
 import time
 
@@ -42,15 +42,27 @@ def num_edges(g):
         total += len(v)
     return total // 2
 
-def make_complete_graph(n):
-    g = defaultdict(list)
-    for i in range(n):
-        for j in range(n):
-            if i == j:
-                continue
-            g[i].append(j)
-            g[j].append(i)
-    return g
+def get_edges(g):
+    edges = []
+    for u, nbrs in g.items():
+        for v in nbrs:
+            edges.append((u,v))
+    return edges
+
+def is_st(g):
+    # connected
+    if is_connected(g) and num_edges(g) == len(g.keys()) - 1:
+        return True
+    else:
+        return False
+
+# checks that for each edge (u, v) in g, there is also (v, u) in g
+def is_undirected(g):
+    for u, nbrs in g.items():
+        for v in nbrs:
+            if not (u in g[v]):
+                return False
+    return True
 
 def get_random_graph(n, density, max_degree, min_degree):
     g1 = {}
@@ -88,6 +100,57 @@ def get_random_edge(g):
     random_u = random.choice(list(g.keys()))
     random_v = random.choice(g[random_u]) # g[u] is not empty, assuming g is connected
     return (random_u, random_v)
+
+# chooses a random edge from g, removes it from g, and returns the edge
+# modifies g
+def pop_random_edge(g):
+    e = get_random_edge(g)
+    u, v = e
+    g[u].remove(v)
+    g[v].remove(u)
+    return e
+
+def del_edge(g, e):
+    u, v = e
+    g[u].remove(v)
+    g[v].remove(u)
+
+def tarjans(g):
+    n = len(g)
+    connections = get_edges(g)
+    # g = collections.defaultdict(list)
+    # for u, v in connections:
+    #     g[u].append(v)
+    #     g[v].append(u)
+
+    N = len(connections)
+    lev = [None] * N
+    low = [None] * N
+
+    def dfs(node, par, level):
+        # already visited
+        if lev[node] is not None:
+            return
+
+        lev[node] = low[node] = level
+        for nei in g[node]:
+            if not lev[nei]:
+                dfs(nei, node, level + 1)
+
+        # minimal level in the neignbors, exclude the parent
+        cur = min([level] + [low[nei] for nei in g[node] if nei != par])
+        low[node] = cur
+        # print(low, lev)
+
+    dfs(0, None, 0)
+
+    ans = []
+    for u, v in connections:
+        if u >= v:
+            continue
+        if low[u] > lev[v] or low[v] > lev[u]:
+            ans.append([u, v])
+    return ans
 
 # To examine distribution of spanning tree samplers, need a way to put same graphs into some same form
 # assuming the graph vertices are labelled with integers, can put the graph into standard form as
@@ -150,40 +213,65 @@ def get_random_distribution(a, b, n):
         d[random.randint(a, b)] += 1
     return d
 
-def test_complete_graphs():
-    start_time = time.time()
-    print("Generating complete graph...")
-    g = make_complete_graph(4)
-    print("--- %s seconds ---" % (time.time() - start_time))
-    print("Calulating MTT...")
-    start_time = time.time()
-    sign, logdet = MTT(g, use_log=True)
-    assert(sign > 0)
-    if logdet < 10:
-        print("number of spanning trees: %.2f" % (sign * np.exp(logdet)))
-    else:
-        print("number of spanning trees: exp(%.2f)" % logdet)
-    print("--- %s seconds ---" % (time.time() - start_time))
+# contracts g about the given edge
+# modifies g
+def contract(g, edge):
+    u, v = edge
 
+    v_nbrs = g.pop(v)
+    v_nbrs.remove(u)
+    u_nbrs = g[u]
+    u_nbrs.remove(v)
+    v_and_u = set(v_nbrs).union(set(u_nbrs))
+    v_not_u = set(v_nbrs) - set(u_nbrs)
+    v_int_u = set(v_nbrs).intersection(set(u_nbrs))
 
-def test_random_graphs(seed = None):
-    start_time = time.time()
-    print("Generating random graph...")
-    g = get_random_connected_graph(5000, 0.2, seed=seed, max_degree=10)
-    print("--- %s seconds ---" % (time.time() - start_time))
-    print("Calulating MTT...")
-    sign, logdet = MTT(g, use_log=True)
-    assert(sign > 0)
-    if logdet < 10:
-        print("number of spanning trees: %.2f" % (sign * np.exp(logdet)))
-    else:
-        print("number of spanning trees: exp(%.2f)" % logdet)
-    print("--- %s seconds ---" % (time.time() - start_time))
+    for w in v_not_u: # merge v into u
+        g[u].append(w)
+    for w in v_not_u: # replace v by u
+        g[w].remove(v)
+        g[w].append(u)
+    for w in v_int_u: # remove v
+        g[w].remove(v)
+
+def test_contract():
+    g = {}
+    g[1] = [4]
+    g[2] = [4, 5]
+    g[3] = [5]
+    g[4] = [1, 2, 5, 6]
+    g[5] = [2, 3, 4, 7]
+    g[6] = [4]
+    g[7] = [5, 8]
+    g[8] = [7]
+
+    printGraph(g)
+    contract(g, (4, 5))
+    printGraph(g)
+
+def get_degrees(g):
+    return [len(nbrs) for nbrs in g.values()]
+
+# do a random walk on the graph and see what percentage of the graph we hit
+# this is our attempt at a cheap heuristic to determine the cover time
+def get_hit_rate(g, iterations, steps):
+    hit_rates = []
+    for _ in range(iterations):
+        hit = set()
+        v = random.sample(g.keys(), 1)[0] # choose random start vertex
+        hit.add(v)
+        for _ in range(steps):
+            v = random.sample(g[v], 1)[0]
+            hit.add(v)
+        hit_rate = len(hit) / len(g)
+        hit_rates.append(hit_rate)
+    return np.mean(hit_rates)
 
 if __name__ == "__main__":
-    print(get_random_connected_graph(1000, 4, 0, max_degree=5))
-    print("\n")
-    test_complete_graphs()
-    print("\n")
-    test_random_graphs(seed = 1)
-    print("\n")
+    pass
+    g = get_random_connected_graph(130, 0.8)
+    # d = get_degrees(g)
+    # print(d)
+
+    hr = get_hit_rate(g, 30, 130 * 7)
+    print(hr)

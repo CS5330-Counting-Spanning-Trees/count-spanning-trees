@@ -1,7 +1,7 @@
 # Matrix tree theorem
 
 import numpy as np
-import copy
+import copy, math
 
 def print2d(matrix):
     for r in matrix:

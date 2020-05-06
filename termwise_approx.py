@@ -1,79 +1,120 @@
 # Experiments for approximating the term NST(G_i) / NST(G_{i-1})
-import pprint, copy, random, os
-import db, graphs, plotting
+import pprint, copy, random, os, math, time
+import db, random_graphs, plotting
 import numpy as np
+import pandas as pd
 from mtt import MTT
 from st_sampler import STSampler
 from collections import defaultdict
+from fractions import Fraction
+from decimal import Decimal
 
-# this is the main testing function
-# g = graph
-# edge = the edge removed to get g_minus_one_edge
-# actual ratio = NST(g) / NST(g_minus_one_edge)
-# num_samples = number of samples we will draw to calculate the estimate
-def get_error(g, g_minus_one_edge, edge, actual_ratio, num_samples):
+def mult_error(est, actual):
+    return abs(est - actual) / actual
+
+def mult_error_log(log_est, log_actual):
+    return math.exp(log_est - log_actual) - 1
+
+# theoretical number of samples required to obtain a (eps/2m, delta/m)-approximation for each term
+def calc_num_samples(g, eps, delta):
+    n = len(g)
+    m = random_graphs.num_edges(g)
+    logterm = math.log(2 * m / delta, math.e)
+    return round(12 * n * m**2 * logterm / eps**2)
+
+# draws samples until the error is within eps of the true value actual
+def sample_till_error_less_than(g, e, eps, actual):
+    upper_limit = 100000
     sampler = STSampler(g)
-    good = 0 # number of samples without the 'bad' edge
-    for i in range(num_samples):
-        t = sampler.sample()
-        if not (edge[1] in t[edge[0]]): # doesnt contains bad edge
-            good += 1
-    r_est = num_samples / good
-    mult_error = abs(r_est - actual_ratio) / actual_ratio
-    return mult_error
+    has_e = 0
+    num_samples = 0
+    err = 0
+    while(num_samples < upper_limit):
+        denom = num_samples - has_e
+        if denom == 0:
+            err = 1
+        else:
+            err = mult_error(Decimal(num_samples) / Decimal(denom), actual)
+        if (err <= eps):
+            break
+        sample = sampler.sample()
+        if e[1] in sample[e[0]]:
+            has_e += 1
+        num_samples += 1
 
-def run_tests():
-    # we gonna test for all number of vertices, density, and sample_sizes
-    # for each pair (num_vertices, density) we have 10 graphs - we will take average over all of them
-    test_dir = 'testsuite2'
-    save_path = 'termwise2_plot_data.json'
-    sample_sizes = [10, 50, 100, 200, 300, 400, 500]
-    num_vertices_list = [20, 40, 60, 80, 100, 120]
-    densities_list = [0.1, 0.3, 0.5, 0.7, 0.9]
-    graph_number_list = list(range(1, 11))
+        if (num_samples % 200 == 0):
+            print(f'taking sample no. {num_samples}, err = {err}, eps = {eps}')
 
-    # test_dir = 'testsuite3'
-    # save_path = 'termwise3_plot_data.json'
-    # sample_sizes = [10, 50, 100, 200]
-    # num_vertices_list = [40, 60, 80]
-    # densities_list = [0.3, 0.5, 0.7]
-    # graph_number_list = list(range(1, 6))
+    return num_samples
 
-    plotdata = defaultdict(list)
-    for n in num_vertices_list:
-        for density in densities_list:
-            mult_error_table = np.zeros((len(graph_number_list), len(sample_sizes)))
-            for gn in graph_number_list:
-                filename = 'g{}_{}_{}.json'.format(gn, n, int(100 * density))
-                path = (os.path.join(test_dir, filename))
+def avg_num_samples_for_eps(g, e, actual, eps, num_runs, log=False):
+    total = 0
+    for i in range(num_runs):
+        print('run=', i)
+        M = sample_till_error_less_than(g, e, eps, actual, log)
+        total += M
+    return total / num_runs
 
-                data = db.load_data(path) # has the form [g1, NST(g1), g2, NST(g2), (u, v)]
+def make_row(n, density):
+    # params
+    final_eps = 0.01
+    final_delta = 0.01
+    iterations = 5
+    steps = int(n * math.log(n, 2))
 
-                g1 = db.fix_keys(data[0])
-                nst1 = data[1]
-                g2 = db.fix_keys(data[2])
-                nst2 = data[3]
-                e = data[4]
+    g1 = random_graphs.get_random_connected_graph(n, density)
+    g2 = copy.deepcopy(g1)
+    e = random_graphs.pop_random_edge(g2)
+    if not random_graphs.is_connected(g2):
+        print('bad pop')
+        return None
 
-                if (nst2 == 0): # the graph got disconnected, discard this point
-                    continue # this will skew our results a bit
-                r = nst1 / nst2
-                for i in range(len(sample_sizes)):
-                    mult_error = get_error(g1, g2, e, r, sample_sizes[i]) * 100 # in percent
-                    mult_error_table[gn-1][i] = mult_error
+    # graph stats
+    m = random_graphs.num_edges(g1)
+    nst1 = MTT(g1)
+    nst2 = MTT(g2)
+    actual = Decimal(nst1) / Decimal(nst2)
+    degrees = random_graphs.get_degrees(g1)
+    min_deg = min(degrees)
+    max_deg = max(degrees)
+    avg_deg = sum(degrees) / n
+    hit_rate = random_graphs.get_hit_rate(g1, iterations, steps)
 
-            # take average along cols of mult_error_table
-            # covert to list and add to plot data
-            errors = list(np.mean(mult_error_table, axis=0))
-            dataset = list(zip(sample_sizes, errors))
-            plotdata[str((n, density))] = dataset
+    eps = final_eps / (2 * m)
+    delta = final_delta / m
+    t0 = time.time()
+    K = sample_till_error_less_than(g1, e, eps, actual)
+    t1 = time.time()
 
-    db.save_data(plotdata, save_path)
+    row = [n, density, m, min_deg, max_deg, avg_deg, nst1, nst2, hit_rate, K, t1-t0]
+    return row
 
-# fetch data from data_path
-# plots the data, then saves the plot to save_path
-def plot__data(data_path, save_path)
-    data = db.load_data(data_path)
-    plotting.plot_data_and_save(data, save_path)
+fjson = 'rows1_batch2.json'
+fcsv = fcsv = 'rows1_batch2.json'
 
-# todo: write code to make some plotz
+
+# we want find K for various graphs n with density 10 / n
+def gen_data():
+    ns = list(range(30, 150, 10))
+    rows = db.load_data(fjson)
+    for n in ns:
+        try:
+            density = 10 / n
+            r = make_row(n, density)
+            print('row:', r)
+            rows.append(r)
+            db.save_data(rows, fjson) # allows termination at any time
+        except KeyboardInterrupt:
+            raise
+        except:
+            pass
+
+def make_csv():
+    rows = db.load_data(fjson)
+    cols = ['n', 'density', 'm', 'min deg', 'max deg', 'avg deg', 'nst1', 'nst2', 'hit rate', 'K', 'time']
+    df = pd.DataFrame(rows, columns=cols)
+    print(df)
+    df.to_csv(fcsv)
+
+if __name__ == "__main__":
+    make_csv()

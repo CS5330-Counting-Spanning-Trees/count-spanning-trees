@@ -1,6 +1,7 @@
 import os
 import matplotlib.pyplot as plt
 import numpy as np
+import db
 
 # this will plot data onto a simple x,y graph, and save it into the location specified by path
 # data is a dict mapping {label : dataset}
@@ -28,4 +29,15 @@ def test():
     data = [ds1, ds2]
     plot_data_and_save(data, path)
 
-#test() 
+def plot_termwise_data():
+    path = 'termwise-num-samples-for-0.01-error.json'
+    save_path = 'pics/termwise-num-samples-for-0.01-error.png'
+    data = db.load_data(path)
+    ns = list(range(40, 190, 10))
+    plt.plot(ns, data)
+    xla
+    plt.savefig(save_path)
+
+if __name__ == "__main__":
+    pass
+    #plot_termwise_data()
